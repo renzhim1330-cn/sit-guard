@@ -341,7 +341,7 @@
   ];
   function renderVoiceList() {
     const warn = SitGuardVoice.hasZhVoice ? '' :
-      '<div class="voicewarn">⚠️ 此设备没有中文语音包：提醒将播放提示音。建议点「● 录音」录入家长声音（更可靠、更有温度）。</div>';
+      '<div class="voicewarn">⚠️ 此设备没有中文语音包：默认语音由应用内置音频提供；想用更温暖的声音可点「● 录音」录入家长声音。</div>';
     $('voiceList').innerHTML = warn + VOICE_CATS.map((c) => {
       const n = SitGuardVoice.textCount(c.key);
       let rows = '';

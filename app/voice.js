@@ -1,8 +1,8 @@
 /* 语音层（spec §6，票 04 文案库定稿）。
- * 录音按「句槽」存储：每个类别有 1–3 句文案，每一句都可单独录一条（家长/老师声音）。
- * 播放优先级：已录槽随机轮换（不连播）> 浏览器语音合成朗读 > 提示音兜底。
- * 移动端注意：安卓 / iOS 常缺中文 TTS 引擎或拦截语音合成，此时改用 WebAudio 提示音保证「有声」，
- * 并引导家长用「录音」功能录入真实声音（Audio 元素播放，移动端最可靠）。
+ * 播放优先级：录音（家长/老师预录）> 内置语音文件（app/audio/*.mp3）> 浏览器 TTS > 提示音兜底。
+ * 内置 mp3 随仓库部署，移动端用 <audio> 播放（最可靠，不依赖系统 TTS）。
+ * 生成方式：python app/generate_voice.py（edge-tts）。
+ * 轮换：同一类别随机选取且不与上一条重复（防唠叨）。
  */
 (function (global) {
   'use strict';
@@ -109,32 +109,48 @@
     return s;
   }
 
-  /* 文案随机轮换且不与上一条重复（TTS 用） */
-  function pickText(cat) {
+  /* 内置语音文件（app/audio/<类别>-<序号>.mp3，随仓库部署） */
+  function bundledFile(cat, idx) { return 'audio/' + cat + '-' + idx + '.mp3'; }
+
+  /* 文案索引随机轮换且不与上一条重复（内置音频 / TTS 共用） */
+  function pickTextIdx(cat) {
     const arr = SCRIPTS[cat];
     let i;
     if (lastIdx[cat] === undefined || arr.length === 1) i = Math.floor(Math.random() * arr.length);
     else i = (lastIdx[cat] + 1 + Math.floor(Math.random() * (arr.length - 1))) % arr.length;
     lastIdx[cat] = i;
-    return arr[i];
+    return i;
   }
 
-  /* 事件驱动播放：优先已录槽轮换，否则 TTS / 提示音 */
+  /* 播放内置 mp3；文件缺失 / 加载失败时回落到 TTS / 提示音 */
+  function playBundledOrFallback(cat, idx) {
+    let fell = false;
+    const fallback = () => {
+      if (fell) return;
+      fell = true;
+      if (hasZhVoice && 'speechSynthesis' in window) speak(SCRIPTS[cat][idx]);
+      else chime();
+    };
+    const a = new Audio(bundledFile(cat, idx));
+    a.volume = volume;
+    a.onerror = fallback;
+    a.play().catch(fallback);
+  }
+
+  /* 事件驱动播放：已录槽轮换 > 内置语音（轮换）> TTS / 提示音 */
   function play(cat) {
     if (muted) return;
     const s = pickSlot(cat);
     if (s >= 0) { playAudio(recording(cat, s)); return; }
-    if (hasZhVoice && 'speechSynthesis' in window) speak(pickText(cat));
-    else chime();
+    playBundledOrFallback(cat, pickTextIdx(cat));
   }
 
-  /* 试听某一具体句槽：该句有录音播录音，否则朗读该句 */
+  /* 试听某一具体句槽：录音 > 内置语音 > TTS / 提示音 */
   function playSlot(cat, idx) {
     if (muted) return;
     const rec = recording(cat, idx);
     if (rec) { playAudio(rec); return; }
-    if (hasZhVoice && 'speechSynthesis' in window) speak(SCRIPTS[cat][idx]);
-    else chime();
+    playBundledOrFallback(cat, idx);
   }
 
   global.SitGuardVoice = {
