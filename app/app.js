@@ -340,7 +340,9 @@
     { key: 'end', name: '结束学习', texts: SitGuardVoice.SCRIPTS.end },
   ];
   function renderVoiceList() {
-    $('voiceList').innerHTML = VOICE_CATS.map((c) => {
+    const warn = SitGuardVoice.hasZhVoice ? '' :
+      '<div class="voicewarn">⚠️ 此设备没有中文语音包：提醒将播放提示音。建议点「● 录音」录入家长声音（更可靠、更有温度）。</div>';
+    $('voiceList').innerHTML = warn + VOICE_CATS.map((c) => {
       const has = SitGuardVoice.recording(c.key);
       const texts = Array.isArray(c.texts) ? c.texts.join(' / ') : c.texts;
       const recBtn = recordingKey === c.key
@@ -576,5 +578,18 @@
   renderVoiceList();
   renderSummaryCards();
   render();
+  /* iOS / 移动端：第一次用户手势时解锁语音合成（否则 TTS 可能被静默拦截） */
+  document.addEventListener('pointerdown', function unlockAudio() {
+    try {
+      if ('speechSynthesis' in window) {
+        const u = new SpeechSynthesisUtterance(' ');
+        u.volume = 0;
+        speechSynthesis.speak(u);
+      }
+    } catch (e) {}
+    document.removeEventListener('pointerdown', unlockAudio);
+  }, { once: true });
+  /* 中文语音包晚加载完成时刷新提示 */
+  if ('speechSynthesis' in window) window.speechSynthesis.addEventListener('voiceschanged', renderVoiceList);
   boot();
 })();
