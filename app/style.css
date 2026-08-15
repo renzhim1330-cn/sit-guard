@@ -174,3 +174,31 @@ footer { display:flex; justify-content:space-between; align-items:center; margin
 .toast.show { opacity:1; }
 
 #video { display:none; }
+
+/* 参数设置面板（家长入口，与孩子主界面隔离） */
+.minibtn.light { background:#f1f5f9; color:var(--ink); border:1px solid var(--line); }
+.settings-panel {
+  background:#fff; color:var(--ink); border-radius:16px;
+  width:min(92vw, 500px); max-height:86vh;
+  display:flex; flex-direction:column; gap:10px;
+  padding:18px 20px; text-align:left; overflow:hidden;
+}
+.settings-panel h2 { margin:0; font-size:17px; }
+.settings-panel .note { font-size:12px; color:var(--muted); margin:0; line-height:1.5; }
+.presets { display:flex; gap:8px; }
+.presets button {
+  flex:1; border:1px solid var(--line); background:#f8fafc; border-radius:10px;
+  padding:8px 0; font-size:13px; cursor:pointer; font-family:inherit;
+}
+.presets button.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+.sections { overflow:auto; flex:1; padding-right:4px; }
+.pgroup { font-size:12px; font-weight:700; color:var(--muted); margin:12px 0 4px; }
+.param { border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:8px; }
+.param .phead { display:flex; justify-content:space-between; align-items:baseline; }
+.param .pname { font-weight:600; font-size:13px; }
+.param .pval { font-size:13px; color:var(--accent); font-variant-numeric:tabular-nums; }
+.param .pexp { font-size:12px; color:var(--muted); margin:2px 0 6px; }
+.param input[type=range] { width:100%; accent-color:var(--accent); }
+.settings-foot { display:flex; gap:10px; justify-content:center; }
+.settings-foot .bigbtn { font-size:15px; padding:10px 22px; }
+.settings-foot .closebtn { border-color:var(--line); color:var(--muted); }

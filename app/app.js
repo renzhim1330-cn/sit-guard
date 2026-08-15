@@ -460,7 +460,119 @@
   $('volRange').addEventListener('input', (e) => { SitGuardVoice.setVolume(e.target.value / 100); });
   $('chkMute').addEventListener('change', (e) => { SitGuardVoice.setMuted(e.target.checked); });
 
+  /* ---------------- 参数设置（家长面板） ----------------
+   * 引擎实时读取 CFG（每帧），改 CFG 即生效、无需重启或重新校准。
+   * 数值统一用「显示单位」（角度°、百分比%、秒）；头过低内部为比例，set/get 负责换算。 */
+  const PARAM_DEFS = (() => {
+    const D = [];
+    const add = (key, group, name, unit, min, max, step, get, set, exp, fmt) =>
+      D.push({ key, group, name, unit, min, max, step, get, set, exp, fmt: fmt || ((v) => v + ' ' + unit) });
+    const ang = (v) => v.toFixed(1) + '°', pct = (v) => v.toFixed(0) + '%', sec = (v) => (v % 1 ? v.toFixed(1) : v) + ' 秒', cnt = (v) => v + ' 次';
+    add('slouch.t1', '判定阈值', '驼背 · 疑似阈值', '°', 2, 16, 0.5, () => CFG.postures.slouch.t1, (v) => { CFG.postures.slouch.t1 = v; }, '偏离达到该角度开始「疑似」（黄脸）。越大越宽容。', ang);
+    add('slouch.t2', '判定阈值', '驼背 · 超标阈值', '°', 6, 25, 0.5, () => CFG.postures.slouch.t2, (v) => { CFG.postures.slouch.t2 = v; }, '达到该角度进入「超标」，持续满宽限就语音提醒。', ang);
+    add('slouch.hys', '判定阈值', '驼背 · 迟滞', '°', 0.5, 4, 0.5, () => CFG.postures.slouch.hys, (v) => { CFG.postures.slouch.hys = v; }, '防闪烁：回落这么多才退出当前状态。', ang);
+    add('headDrop.t1', '判定阈值', '头过低 · 疑似阈值', '%', 4, 20, 1, () => CFG.postures.headDrop.t1 * 100, (v) => { CFG.postures.headDrop.t1 = v / 100; }, '鼻高偏离达躯干长的该百分比开始「疑似」。', pct);
+    add('headDrop.t2', '判定阈值', '头过低 · 超标阈值', '%', 8, 30, 1, () => CFG.postures.headDrop.t2 * 100, (v) => { CFG.postures.headDrop.t2 = v / 100; }, '达到该百分比进入「超标」。', pct);
+    add('headDrop.hys', '判定阈值', '头过低 · 迟滞', '%', 1, 8, 1, () => CFG.postures.headDrop.hys * 100, (v) => { CFG.postures.headDrop.hys = v / 100; }, '防闪烁：回落这么多才退出当前状态。', pct);
+    add('tilt.t1', '判定阈值', '侧倾 · 疑似阈值', '°', 2, 16, 0.5, () => CFG.postures.tilt.t1, (v) => { CFG.postures.tilt.t1 = v; }, '歪头 / 歪身达到该角度开始「疑似」。', ang);
+    add('tilt.t2', '判定阈值', '侧倾 · 超标阈值', '°', 6, 25, 0.5, () => CFG.postures.tilt.t2, (v) => { CFG.postures.tilt.t2 = v; }, '达到该角度进入「超标」。', ang);
+    add('tilt.hys', '判定阈值', '侧倾 · 迟滞', '°', 0.5, 4, 0.5, () => CFG.postures.tilt.hys, (v) => { CFG.postures.tilt.hys = v; }, '防闪烁：回落这么多才退出当前状态。', ang);
+    add('grace', '时间参数', '宽限时间', '秒', 1, 10, 0.5, () => CFG.graceSeconds, (v) => { CFG.graceSeconds = v; }, '连续超标多久才语音提醒。越大越「忍住」。', sec);
+    add('cooldown', '时间参数', '提醒冷却', '秒', 10, 120, 5, () => CFG.cooldownSeconds, (v) => { CFG.cooldownSeconds = v; }, '两次提醒之间的最小间隔。', (v) => v + ' 秒');
+    add('maxRepeat', '时间参数', '同类连续上限', '次', 1, 5, 1, () => CFG.maxRepeatSame, (v) => { CFG.maxRepeatSame = v; }, '同一姿态最多连续提醒几次，超出就压住。', cnt);
+    add('praiseMin', '时间参数', '表扬最小间隔', '秒', 5, 60, 5, () => CFG.praiseMinInterval, (v) => { CFG.praiseMinInterval = v; }, '两次坐正表扬之间至少隔多久。', (v) => v + ' 秒');
+    return D;
+  })();
+
+  /* 三档灵敏度预设（显示单位） */
+  const PRESETS = {
+    loose: { name: '宽松', exp: '提醒更少、更温柔', values: { 'slouch.t1': 12, 'slouch.t2': 18, 'slouch.hys': 3, 'headDrop.t1': 20, 'headDrop.t2': 28, 'headDrop.hys': 4, 'tilt.t1': 12, 'tilt.t2': 18, 'tilt.hys': 3, grace: 5, cooldown: 45, maxRepeat: 2, praiseMin: 30 } },
+    standard: { name: '标准', exp: 'spec 默认值', values: { 'slouch.t1': 8, 'slouch.t2': 12, 'slouch.hys': 2, 'headDrop.t1': 12, 'headDrop.t2': 20, 'headDrop.hys': 3, 'tilt.t1': 8, 'tilt.t2': 12, 'tilt.hys': 2, grace: 3.5, cooldown: 30, maxRepeat: 2, praiseMin: 20 } },
+    strict: { name: '严格', exp: '更敏感、更及时', values: { 'slouch.t1': 6, 'slouch.t2': 9, 'slouch.hys': 1.5, 'headDrop.t1': 8, 'headDrop.t2': 14, 'headDrop.hys': 2, 'tilt.t1': 6, 'tilt.t2': 9, 'tilt.hys': 1.5, grace: 2.5, cooldown: 20, maxRepeat: 2, praiseMin: 10 } },
+  };
+
+  function writeParams(values) {
+    for (const d of PARAM_DEFS) if (values[d.key] !== undefined) d.set(values[d.key]);
+    enforceOrder();
+  }
+  /* 防非法组合：保证 t2 > t1 > hys（角度 +2°、比例 +2%），否则状态机会卡带 */
+  function enforceOrder() {
+    for (const k of ['slouch', 'headDrop', 'tilt']) {
+      const p = CFG.postures[k];
+      const u = k === 'headDrop' ? 0.02 : 2, minHys = k === 'headDrop' ? 0.01 : 0.5;
+      if (p.t2 <= p.t1) p.t2 = p.t1 + u;
+      if (p.hys >= p.t1) p.hys = Math.max(minHys, p.t1 - u);
+    }
+  }
+  function saveParams() {
+    const obj = {};
+    for (const d of PARAM_DEFS) obj[d.key] = d.get();
+    try { localStorage.setItem('sgParams', JSON.stringify(obj)); } catch (e) {}
+  }
+  function loadParams() {
+    try {
+      const saved = JSON.parse(localStorage.getItem('sgParams'));
+      if (saved) writeParams(saved);
+    } catch (e) {}
+  }
+  function activePreset() {
+    outer:
+    for (const pk of Object.keys(PRESETS)) {
+      const v = PRESETS[pk].values;
+      for (const d of PARAM_DEFS) if (Math.abs(d.get() - v[d.key]) > 1e-6) continue outer;
+      return pk;
+    }
+    return null;
+  }
+  function refreshPresetBtns() {
+    const preset = activePreset();
+    [...$('presetBtns').children].forEach((b) => b.classList.toggle('active', b.dataset.preset === preset));
+  }
+  function renderSettings() {
+    $('presetBtns').innerHTML = Object.keys(PRESETS).map((pk) => {
+      const p = PRESETS[pk];
+      return '<button data-preset="' + pk + '" title="' + p.exp + '">' + p.name + '</button>';
+    }).join('');
+    refreshPresetBtns();
+    let html = '', lastGroup = '';
+    for (const d of PARAM_DEFS) {
+      if (d.group !== lastGroup) { html += '<div class="pgroup">' + d.group + '</div>'; lastGroup = d.group; }
+      html += '<div class="param"><div class="phead"><span class="pname">' + d.name + '</span><span class="pval">' + d.fmt(d.get()) + '</span></div>' +
+        '<div class="pexp">' + d.exp + '</div>' +
+        '<input type="range" data-k="' + d.key + '" min="' + d.min + '" max="' + d.max + '" step="' + d.step + '" value="' + d.get() + '"></div>';
+    }
+    $('settingsForm').innerHTML = html;
+  }
+
+  $('btnSettings').addEventListener('click', () => { renderSettings(); $('ovSettings').classList.add('open'); });
+  $('btnSettingsClose').addEventListener('click', () => $('ovSettings').classList.remove('open'));
+  $('btnResetParams').addEventListener('click', () => {
+    writeParams(PRESETS.standard.values);
+    saveParams();
+    toast('已恢复默认（标准）参数');
+    renderSettings();
+  });
+  $('presetBtns').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-preset]'); if (!b) return;
+    writeParams(PRESETS[b.dataset.preset].values);
+    saveParams();
+    toast('已切换为「' + PRESETS[b.dataset.preset].name + '」');
+    renderSettings();
+  });
+  $('settingsForm').addEventListener('input', (e) => {
+    const inp = e.target;
+    if (inp.tagName !== 'INPUT' || !inp.dataset.k) return;
+    const def = PARAM_DEFS.find((d) => d.key === inp.dataset.k); if (!def) return;
+    def.set(+inp.value);
+    enforceOrder();
+    saveParams();
+    inp.closest('.param').querySelector('.pval').textContent = def.fmt(def.get());
+    inp.value = def.get();   // 若被钳制则同步滑杆位置
+    refreshPresetBtns();
+  });
+
   /* ---------------- 启动 ---------------- */
+  loadParams();
   renderVoiceList();
   renderSummaryCards();
   render();

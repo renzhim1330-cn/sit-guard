@@ -79,6 +79,7 @@
 
   <footer>
     <button class="minibtn" id="btnDemo">🎬 骨架演示模式</button>
+    <button class="minibtn light" id="btnSettings">⚙️ 参数设置</button>
     <span class="muted small">检测全程在本机运行，画面不出设备</span>
   </footer>
 </div>
@@ -100,6 +101,20 @@
   <div class="badges demo-badges" id="demoBadges"></div>
   <p class="note">摄像头画面 + 关键点叠加，仅用于展示检测效果</p>
   <button class="closebtn" id="btnDemoClose">返回</button>
+</div>
+
+<!-- 参数设置覆盖层（家长面板） -->
+<div class="overlay" id="ovSettings">
+  <div class="settings-panel">
+    <h2>参数设置</h2>
+    <p class="note">调整立即生效并自动保存在本机；数值都是「偏离校准基准」的量。主界面不会显示这些数字，请在孩子看不到时调整。</p>
+    <div class="presets" id="presetBtns"></div>
+    <div class="sections" id="settingsForm"></div>
+    <div class="settings-foot">
+      <button class="bigbtn" id="btnResetParams">恢复默认（标准）</button>
+      <button class="closebtn" id="btnSettingsClose">关闭</button>
+    </div>
+  </div>
 </div>
 
 <!-- 学习小结覆盖层 -->
