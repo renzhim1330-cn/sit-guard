@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>坐姿判定逻辑原型 — 票 02</title>
+<style>
+  :root { --accent:#2563eb; --ok:#16a34a; --warn:#d97706; --bad:#dc2626; --ink:#1f2937; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: "PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--ink); line-height:1.6; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 24px 20px 60px; }
+  header h1 { font-size: 22px; margin: 0 0 6px; }
+  header p { color: var(--muted); margin: 4px 0; }
+  .intro { background:#fff; border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:10px; padding:14px 18px; margin:14px 0; font-size:14px; }
+  .intro b { color: var(--accent); }
+  .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin:14px 0; }
+  .card h2 { font-size:15px; margin:0 0 10px; }
+  .row { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; }
+  .posture { flex:1 1 250px; border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+  .posture .name { font-weight:600; }
+  .posture .vals { font-size:13px; color:var(--muted); }
+  .badge { display:inline-block; padding:2px 10px; border-radius:999px; font-size:13px; font-weight:600; color:#fff; }
+  .badge.ok{ background:var(--ok);} .badge.warn{ background:var(--warn);} .badge.bad{ background:var(--bad);}
+  .gracebar { height:6px; background:var(--line); border-radius:3px; margin-top:6px; overflow:hidden; }
+  .gracebar i { display:block; height:100%; background:var(--bad); width:0%; transition:width .1s linear; }
+  .globals { font-size:13px; color:var(--muted); margin-top:10px; border-top:1px dashed var(--line); padding-top:8px; }
+  .globals b { color: var(--ink); }
+  label.slider { display:block; margin:10px 0; font-size:14px; }
+  .slider span { color:var(--muted); font-size:13px; }
+  .slider output { float:right; font-variant-numeric: tabular-nums; }
+  input[type=range]{ width:100%; accent-color:var(--accent); }
+  button { border:1px solid var(--line); background:#fff; border-radius:8px; padding:7px 14px; font-size:14px; cursor:pointer; }
+  button:hover { border-color:var(--accent); color:var(--accent); }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button.primary:hover { filter:brightness(1.1); color:#fff; }
+  button:disabled { opacity:.45; cursor:default; }
+  .tabs { display:flex; gap:8px; flex-wrap:wrap; }
+  .tab { font-size:14px; }
+  .tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .scen { border-top:1px solid var(--line); margin-top:12px; padding-top:10px; }
+  .scen .desc { font-size:14px; color:var(--muted); margin-bottom:8px; }
+  .steps .step { display:flex; gap:10px; align-items:center; margin:6px 0; font-size:14px; }
+  .steps .step .n { color:var(--muted); width:20px; text-align:right; flex:none; }
+  .note { font-size:13px; color:var(--warn); margin:2px 0 6px 30px; }
+  .log { font-size:13px; font-family: ui-monospace, Consolas, monospace; }
+  .log div { padding:2px 0; border-bottom:1px dashed var(--line); }
+  details { margin-top:10px; font-size:13px; }
+  details input { width:70px; margin:2px 6px 2px 2px; }
+  .muted { color: var(--muted); font-size:12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>坐姿判定逻辑原型 · 票 02「不良坐姿判定阈值与校准」</h1>
+  <p class="muted">一次性原型（throwaway）——验证判定层手感，不是成品界面。双击本文件即可打开，无需网络、无需安装。</p>
+</header>
+
+<div class="intro">
+  <b>要回答的问题：</b>轻量校准（孩子先坐好、点一下「这就是标准坐姿」）之后，驼背 / 头过低 / 侧倾三类不良坐姿用什么度量、什么阈值判定？3–5 秒宽限放在判定链的哪一环？小动作怎么不误报？
+  <br><b>本原型验证的：</b>判定层状态机——「正常 / 疑似 / 超标」状态带 + 迟滞（防闪烁）+ 持续宽限计时（抗误报）+ 提醒冷却。注意：<b>不对度量做 EMA 平滑</b>——平滑会让偏离值无限逼近阈值、永远差一点点跨不过去；抗误报交给迟滞 + 宽限即可。阈值均为<b>初值</b>，可在「阈值微调」里改，边玩边改。
+  <br><b>本原型不验证的：</b>度量公式 <code>measure()</code>（关键点 → 角度）的坐标约定，需在真实视频 / 摄像头数据上跑一次（等票 05 素材）。下方滑杆直接模拟「当前度量」，绕过关键点层。
+</div>
+
+<div class="card">
+  <h2>当前状态</h2>
+  <div id="baselineRow" class="muted" style="margin-bottom:8px;">尚未校准——先点「校准为当前」</div>
+  <div class="row" id="postureRows"></div>
+  <div class="globals" id="globals"></div>
+</div>
+
+<div class="card">
+  <h2>自由试玩（模拟当前坐姿）</h2>
+  <div class="muted" style="margin-bottom:6px;">判定看的是「偏离校准基准」，不是滑杆绝对值：先点「校准为当前」，再把滑杆<b>推离基准</b>即是不良坐姿。例如基准 2°、滑杆 10.5° = 偏离 8.5°。</div>
+  <label class="slider">驼背（躯干前倾角）<output id="o_slouch"></output>
+    <input type="range" id="s_slouch" min="0" max="25" step="0.5" value="2">
+    <span>0° = 竖直坐直；越大越前倾。真实实现：髋→肩连线与竖直方向夹角。</span></label>
+  <label class="slider">鼻高比（头高度）<output id="o_headDrop"></output>
+    <input type="range" id="s_headDrop" min="0.05" max="0.60" step="0.01" value="0.50">
+    <span>鼻相对肩中点的高度 ÷ 躯干长（尺度无关）。<b>越小 = 头越低</b>。真实实现：用 3D world landmarks 的 y 差。</span></label>
+  <label class="slider">侧倾（肩 / 耳线倾斜）<output id="o_tilt"></output>
+    <input type="range" id="s_tilt" min="0" max="25" step="0.5" value="1">
+    <span>肩线与耳线相对水平的最大倾角，取两者较大。</span></label>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+    <button class="primary" id="btnCalibrate">校准为当前</button>
+    <button id="btnRestore">恢复基准坐姿</button>
+    <label style="font-size:14px; display:flex; align-items:center; gap:6px;">
+      <input type="checkbox" id="chkJitter"> 小动作抖动（模拟喝水 / 翻书的噪声）
+    </label>
+    <label style="font-size:14px; display:flex; align-items:center; gap:6px;">
+      时间流速
+      <select id="selSpeed">
+        <option value="1" selected>×1（真实）</option>
+        <option value="10">×10（快进）</option>
+      </select>
+    </label>
+    <button id="btnFF5">快进 5 秒</button>
+    <button id="btnFF30">快进 30 秒</button>
+  </div>
+  <details>
+    <summary>阈值微调（初值；冷却 / 连续次数最终值由票 04 定）</summary>
+    <div id="paramGrid" class="row"></div>
+  </details>
+</div>
+
+<div class="card">
+  <h2>引导走查（把难想的场景推一遍）</h2>
+  <div class="tabs" id="tabs"></div>
+  <div class="scen" id="scenario"></div>
+</div>
+
+<div class="card">
+  <h2>事件日志</h2>
+  <div class="log" id="log"></div>
+</div>
+
+</div>
+
+<script>
+/* ==================== 可搬走的纯模块 ====================
+ * 判定引擎：校准基准 + 每帧度量 → 各姿态状态 + 事件。
+ * 无 DOM 依赖，验证通过后可原样搬进真实代码。
+ * ------------------------------------------------------ */
+
+/* —— 传感器层：MediaPipe 33 关键点 → 三个度量（待真实数据验证坐标约定）—— */
+function measurePose(lm) {
+  const mid = (a, b) => ({ x:(a.x+b.x)/2, y:(a.y+b.y)/2, z:(a.z+b.z)/2 });
+  const nose = lm[0], earL = lm[7], earR = lm[8], shL = lm[11], shR = lm[12], hipL = lm[23], hipR = lm[24];
+  const shoulder = mid(shL, shR), hip = mid(hipL, hipR);
+  const torsoLen = Math.hypot(shoulder.x-hip.x, shoulder.y-hip.y, shoulder.z-hip.z);
+  // 驼背：髋→肩矢量与竖直方向的夹角（度），前倾为正
+  const slouch = Math.atan2(Math.hypot(shoulder.x-hip.x, shoulder.z-hip.z), shoulder.y-hip.y) * 180 / Math.PI;
+  // 头过低：鼻相对肩中点的高度 ÷ 躯干长（越小越低）
+  const headDrop = (shoulder.y - nose.y) / torsoLen;
+  // 侧倾：耳线、肩线相对水平的倾角取较大（度）
+  const tilt = Math.max(
+    Math.abs(Math.atan2(earR.y-earL.y, earR.x-earL.x)),
+    Math.abs(Math.atan2(shR.y-shL.y, shR.x-shL.x))
+  ) * 180 / Math.PI;
+  return { slouch, headDrop, tilt, torsoLen };
+}
+
+/* —— 决策层：纯状态机 —— */
+function createEngine(cfg) {
+  const keys = Object.keys(cfg.postures);
+  let baseline = null;
+  const band = {}, grace = {};
+  let cooldownLeft = 0, lastReminded = null, streakSame = 0, reminderTotal = 0, time = 0;
+  const snapshot = {};
+
+  function calibrate(current) {
+    baseline = { ...current };
+    for (const k of keys) { band[k] = 'ok'; grace[k] = 0; }
+    cooldownLeft = 0; lastReminded = null; streakSame = 0; reminderTotal = 0;
+    return { ...baseline };
+  }
+
+  function tick(raw, dt) {
+    if (!baseline) return { states: null, globals: null, events: [] };
+    const events = [];
+    time += dt;
+    if (cooldownLeft > 0) cooldownLeft = Math.max(0, cooldownLeft - dt);
+    const ready = [];
+    for (const k of keys) {
+      // 不做度量平滑：EMA 会让偏离值渐近逼近阈值、永远差一点点跨不过去。
+      // 抗误报靠迟滞带 + 持续宽限计时：短促超标攒不满宽限，自然不提醒。
+      const d = Math.abs(raw[k] - baseline[k]);
+      const { t1, t2, hys } = cfg.postures[k];
+      const prev = band[k];
+      let next = prev;                      // 迟滞带：进带 T，出带 T − hys
+      if (prev === 'ok'   && d >= t1) next = 'warn';
+      else if (prev === 'warn') { if (d >= t2) next = 'bad'; else if (d < t1 - hys) next = 'ok'; }
+      else if (prev === 'bad' && d < t2 - hys) next = 'warn';
+      if (prev === 'bad' && next !== 'bad') events.push({ type:'praise', posture:k, at:time });
+      band[k] = next;
+      if (next === 'bad') { grace[k] += dt; if (grace[k] >= cfg.graceSeconds) ready.push(k); }
+      else grace[k] = 0;
+      snapshot[k] = { band:next, deviation:d, current:raw[k], baseline:baseline[k],
+                      grace:grace[k], graceTotal:cfg.graceSeconds };
+    }
+    // 提醒裁决：同一刻只发一条，取相对阈值偏离最大的；冷却与同类上限压住其余
+    if (ready.length) {
+      ready.sort((a,b) => (snapshot[b].deviation/cfg.postures[b].t2) - (snapshot[a].deviation/cfg.postures[a].t2));
+      const k = ready[0];
+      grace[k] = 0;   // 宽限在本环重置：无论发不发，都重新计满一轮宽限再尝试
+      if (cooldownLeft > 0) {
+        // 冷却中：不发（面板显示冷却剩余即可）
+      } else if (lastReminded === k && streakSame >= cfg.maxRepeatSame) {
+        events.push({ type:'suppressed', posture:k, at:time, reason:'同类连续提醒已达上限' });
+      } else {
+        events.push({ type:'reminder', posture:k, deviation:snapshot[k].deviation, at:time });
+        reminderTotal += 1;
+        cooldownLeft = cfg.cooldownSeconds;
+        streakSame = (lastReminded === k) ? streakSame + 1 : 1;
+        lastReminded = k;
+      }
+    }
+    return { states: snapshot, globals:{ cooldownLeft, streakSame, lastReminded, reminderTotal, time }, events };
+  }
+
+  return { calibrate, tick };
+}
+
+/* ==================== 页面壳（throwaway，只为演示） ==================== */
+
+const CFG = {
+  postures: {
+    slouch:   { label:'驼背',   t1:8,    t2:12,   hys:2,    max:25,  fmt:(v)=>v.toFixed(1)+'°' },
+    headDrop: { label:'头过低', t1:0.12, t2:0.20, hys:0.03, max:0.35, fmt:(v)=>(v*100).toFixed(0)+'%' },
+    tilt:     { label:'侧倾',   t1:8,    t2:12,   hys:2,    max:25,  fmt:(v)=>v.toFixed(1)+'°' },
+  },
+  graceSeconds: 3.5,
+  cooldownSeconds: 30,
+  maxRepeatSame: 2,
+};
+
+let engine = createEngine(CFG);
+let sliders = { slouch:2, headDrop:0.50, tilt:1 };   // 滑杆 = 当前原始度量
+let lastBaseline = null;
+let jitter = false, speed = 1, logLines = [];
+
+const $ = (id) => document.getElementById(id);
+const KEYS = Object.keys(CFG.postures);
+
+function rawJitter() {
+  const r = { ...sliders };
+  if (jitter) {
+    r.slouch  += (Math.random()-0.5)*3;
+    r.tilt    += (Math.random()-0.5)*3;
+    r.headDrop += (Math.random()-0.5)*0.04;
+  }
+  return r;
+}
+
+function fastForward(sec) {
+  for (let t = 0; t < sec; t += 0.25) tickOnce(0.25);
+}
+
+function tickOnce(dt) {
+  const res = engine.tick(rawJitter(), dt);
+  for (const ev of res.events) pushLog(ev);
+  render(res);
+}
+
+function pushLog(ev) {
+  const t = ev.at.toFixed(1) + 's';
+  const lbl = CFG.postures[ev.posture].label;
+  if (ev.type === 'reminder')
+    logLines.unshift(t + '　🔔 提醒·' + lbl + '（偏离 ' + CFG.postures[ev.posture].fmt(ev.deviation) + '）');
+  else if (ev.type === 'praise')
+    logLines.unshift(t + '　👏 ' + lbl + '坐正了');
+  else if (ev.type === 'suppressed')
+    logLines.unshift(t + '　🚫 ' + lbl + '提醒被压住：' + ev.reason);
+  logLines = logLines.slice(0, 10);
+  $('log').innerHTML = logLines.map(l => '<div>'+l+'</div>').join('');
+}
+
+function badgeOf(b) {
+  if (b === 'ok')  return '<span class="badge ok">正常</span>';
+  if (b === 'warn') return '<span class="badge warn">疑似</span>';
+  return '<span class="badge bad">超标</span>';
+}
+
+function render(res) {
+  // 基准行
+  if (lastBaseline) {
+    $('baselineRow').innerHTML = '校准基准：' + KEYS.map(k =>
+      CFG.postures[k].label + ' ' + CFG.postures[k].fmt(lastBaseline[k])).join('　|　');
+  } else {
+    $('baselineRow').innerHTML = '尚未校准——先点「校准为当前」';
+  }
+  // 姿态行
+  const rows = KEYS.map(k => {
+    const p = CFG.postures[k];
+    if (!res.states) {
+      return '<div class="posture"><div class="name">'+p.label+'</div><div class="vals">等待校准</div></div>';
+    }
+    const s = res.states[k];
+    const dFmt = (k==='headDrop') ? ((s.deviation*100).toFixed(1)+'%') : (s.deviation.toFixed(1)+'°');
+    let extra = '';
+    if (s.band === 'bad') {
+      const pct = Math.min(100, s.grace / s.graceTotal * 100);
+      extra = '<div class="gracebar"><i style="width:'+pct+'%"></i></div>' +
+              '<div class="vals">宽限 ' + s.grace.toFixed(1) + ' / ' + s.graceTotal + 's</div>';
+    }
+    return '<div class="posture"><div class="name">'+p.label+' '+badgeOf(s.band)+'</div>' +
+      '<div class="vals">当前 ' + p.fmt(s.current) + '　偏离基准 ' + dFmt + '</div>' + extra + '</div>';
+  }).join('');
+  $('postureRows').innerHTML = rows;
+  // 全局行
+  if (res.globals) {
+    const g = res.globals;
+    let html = '运行时间 <b>' + g.time.toFixed(1) + 's</b>　已提醒 <b>' + g.reminderTotal + '</b> 次';
+    if (g.cooldownLeft > 0) html += '　冷却剩余 <b>' + g.cooldownLeft.toFixed(1) + 's</b>';
+    if (g.lastReminded) html += '　上次提醒：<b>' + CFG.postures[g.lastReminded].label + '</b>（连续同类 ' + g.streakSame + ' / ' + CFG.maxRepeatSame + ' 次上限）';
+    $('globals').innerHTML = html;
+  } else {
+    $('globals').innerHTML = '';
+  }
+}
+
+/* —— 自由试玩 —— */
+function readSliders() {
+  sliders.slouch = +$('s_slouch').value;
+  sliders.headDrop = +$('s_headDrop').value;
+  sliders.tilt = +$('s_tilt').value;
+  $('o_slouch').value = sliders.slouch.toFixed(1) + '°';
+  $('o_headDrop').value = sliders.headDrop.toFixed(2);
+  $('o_tilt').value = sliders.tilt.toFixed(1) + '°';
+}
+function setSlider(k, v) {
+  $('s_' + k).value = v; readSliders();
+}
+for (const id of ['s_slouch','s_headDrop','s_tilt']) {
+  $(id).addEventListener('input', readSliders);
+}
+$('chkJitter').addEventListener('change', (e) => { jitter = e.target.checked; });
+$('selSpeed').addEventListener('change', (e) => { speed = +e.target.value; });
+$('btnCalibrate').addEventListener('click', () => {
+  doCalibrate();
+  render(engine.tick(rawJitter(), 0));
+});
+$('btnRestore').addEventListener('click', () => {
+  if (!lastBaseline) return;
+  setSlider('slouch', lastBaseline.slouch);
+  setSlider('headDrop', lastBaseline.headDrop);
+  setSlider('tilt', lastBaseline.tilt);
+});
+$('btnFF5').addEventListener('click', () => fastForward(5));
+$('btnFF30').addEventListener('click', () => fastForward(30));
+
+// 主循环
+setInterval(() => { if (speed > 0) tickOnce(0.05 * speed); }, 50);
+readSliders();
+render(engine.tick(rawJitter(), 0));
+
+/* —— 阈值微调 —— */
+function buildParams() {
+  const grid = $('paramGrid');
+  let html = '';
+  for (const k of KEYS) {
+    const p = CFG.postures[k];
+    html += '<div><b>'+p.label+'</b>　疑似阈值 t1 <input type="number" step="0.5" data-k="'+k+'" data-f="t1" value="'+p.t1+'">　提醒阈值 t2 <input type="number" step="0.5" data-k="'+k+'" data-f="t2" value="'+p.t2+'">　迟滞 hys <input type="number" step="0.1" data-k="'+k+'" data-f="hys" value="'+p.hys+'"></div>';
+  }
+  html += '<div><b>全局</b>　宽限秒 <input type="number" step="0.5" data-k="g" data-f="graceSeconds" value="'+CFG.graceSeconds+'">　冷却秒 <input type="number" data-k="g" data-f="cooldownSeconds" value="'+CFG.cooldownSeconds+'">　同类上限 <input type="number" data-k="g" data-f="maxRepeatSame" value="'+CFG.maxRepeatSame+'"></div>';
+  grid.innerHTML = html;
+  grid.addEventListener('change', (e) => {
+    const inp = e.target.closest('input'); if (!inp) return;
+    const { k, f } = inp.dataset;
+    if (k === 'g') CFG[f] = +inp.value;
+    else CFG.postures[k][f] = +inp.value;
+    engine = createEngine(CFG);
+    if (lastBaseline) { lastBaseline = engine.calibrate(lastBaseline); }
+  });
+}
+buildParams();
+
+/* —— 引导走查 —— */
+const SCENARIOS = [
+  { name:'① 小动作不误报', desc:'孩子 2 秒内喝水 / 翻书，姿势短暂变差——不该触发提醒（短促超标攒不满 3.5s 宽限，被迟滞 + 宽限一起吸收）。',
+    steps:[
+      { btn:'校准为当前', act:()=>doCalibrate(), note:'基准记录完毕（驼背 2° / 鼻高比 0.50 / 侧倾 1°）' },
+      { btn:'打开小动作抖动', act:()=>{ $('chkJitter').checked = true; jitter = true; }, note:'三个度量开始轻微随机抖动（模拟动作噪声）' },
+      { btn:'驼背推到 14°', act:()=>setSlider('slouch', 14), note:'状态进入「超标」，宽限计时开始' },
+      { btn:'快进 2 秒', act:()=>fastForward(2), note:'看事件日志：没有提醒——宽限 3.5s 未满 ✓' },
+      { btn:'拉回基准', act:()=>restoreBaseline(), note:'状态回到「正常」。全程零提醒 ✓' },
+    ]},
+  { name:'② 持续驼背：宽限→提醒→冷却', desc:'真的持续超标才会提醒；提醒后 30s 冷却内不再唠叨。',
+    steps:[
+      { btn:'校准为当前', act:()=>doCalibrate(), note:'' },
+      { btn:'驼背推到 14°', act:()=>setSlider('slouch', 14), note:'超标，宽限开始' },
+      { btn:'快进 4 秒', act:()=>fastForward(4), note:'看日志：🔔 提醒·驼背 出现；面板显示冷却 30s 开始' },
+      { btn:'拉回基准', act:()=>restoreBaseline(), note:'看日志：👏 驼背坐正了（表扬）' },
+      { btn:'立刻再推 14° 并快进 4 秒', act:()=>{ setSlider('slouch', 14); fastForward(4); }, note:'看日志：没有提醒——冷却中（面板显示冷却剩余）' },
+      { btn:'快进 30 秒', act:()=>fastForward(30), note:'冷却结束、仍超标满一轮宽限 → 第二次提醒 ✓' },
+    ]},
+  { name:'③ 阈值边缘抖动：迟滞', desc:'在「疑似」边界附近小幅来回，状态不该闪来闪去。注意：阈值看的是「偏离基准」，不是滑杆绝对值——本场景校准基准 2°，滑杆 10.5° = 偏离 8.5°。',
+    steps:[
+      { btn:'校准为当前', act:()=>doCalibrate(), note:'基准 2°（滑杆当前值）' },
+      { btn:'驼背推到 10.5°（偏离 8.5°）', act:()=>setSlider('slouch', 10.5), note:'偏离 8.5° ≥ 8° → 状态 = 疑似' },
+      { btn:'降到 9.5°（偏离 7.5°）', act:()=>setSlider('slouch', 9.5), note:'仍是疑似——偏离 7.5° > 出带线 6°，不闪回 ✓' },
+      { btn:'降到 7°（偏离 5°）', act:()=>setSlider('slouch', 7), note:'偏离 5° < 6°，回到正常 ✓' },
+    ]},
+  { name:'④ 两个姿态同时超标', desc:'驼背和头过低同时超标：同一刻只发一条提醒，相对阈值偏离更大的先发。',
+    steps:[
+      { btn:'校准为当前', act:()=>doCalibrate(), note:'' },
+      { btn:'驼背推到 14°', act:()=>setSlider('slouch', 14), note:'' },
+      { btn:'鼻高比降到 0.25（头过低）', act:()=>setSlider('headDrop', 0.25), note:'偏离 0.25（>t2 0.20），两个姿态都超标' },
+      { btn:'快进 4 秒', act:()=>fastForward(4), note:'只发一条：头过低（0.25/0.20=1.25 > 12/12=1.0，先发）' },
+      { btn:'快进 34 秒', act:()=>fastForward(34), note:'冷却后第二条（驼背）也发出 ✓' },
+    ]},
+  { name:'⑤ 换人 / 换角度：重新校准', desc:'基准是相对的——换个孩子或挪动设备后重新校准，同一套阈值照常工作。',
+    steps:[
+      { btn:'摆成新环境（驼背 6°、侧倾 4°、鼻高比 0.45）', act:()=>{ setSlider('slouch',6); setSlider('tilt',4); setSlider('headDrop',0.45); }, note:'' },
+      { btn:'校准为当前', act:()=>doCalibrate(), note:'新基准：驼背 6° / 鼻高比 0.45 / 侧倾 4°' },
+      { btn:'驼背推到 18°（相对 +12°）', act:()=>setSlider('slouch', 18), note:'超标（Δ12° ≥ 12°）' },
+      { btn:'快进 4 秒', act:()=>fastForward(4), note:'照常提醒——判定只看相对基准的偏离，与环境绝对值无关 ✓' },
+    ]},
+];
+let activeScen = 0, scenStep = 0;
+
+function doCalibrate() {
+  lastBaseline = engine.calibrate({ ...sliders });
+  logLines.unshift('——　已校准（基准：' + KEYS.map(k => CFG.postures[k].label+' '+CFG.postures[k].fmt(lastBaseline[k])).join('，') + '）');
+  logLines = logLines.slice(0,10);
+  $('log').innerHTML = logLines.map(l => '<div>'+l+'</div>').join('');
+}
+function restoreBaseline() {
+  if (!lastBaseline) return;
+  setSlider('slouch', lastBaseline.slouch);
+  setSlider('headDrop', lastBaseline.headDrop);
+  setSlider('tilt', lastBaseline.tilt);
+}
+function startScenario(i) {
+  activeScen = i; scenStep = 0;
+  // 重置：新引擎 + 滑杆回默认 + 关抖动
+  engine = createEngine(CFG); lastBaseline = null;
+  setSlider('slouch', 2); setSlider('headDrop', 0.50); setSlider('tilt', 1);
+  $('chkJitter').checked = false; jitter = false;
+  logLines = []; $('log').innerHTML = '';
+  render(engine.tick(rawJitter(), 0));
+  renderTabs(); renderScenario();
+}
+function renderTabs() {
+  $('tabs').innerHTML = SCENARIOS.map((s, i) =>
+    '<button class="tab' + (i === activeScen ? ' active' : '') + '">' + s.name + '</button>').join('');
+  [...$('tabs').children].forEach((b, i) => b.addEventListener('click', () => startScenario(i)));
+}
+function renderScenario() {
+  const s = SCENARIOS[activeScen];
+  let html = '<div class="desc">' + s.desc + '</div><div class="steps">';
+  s.steps.forEach((st, i) => {
+    if (i < scenStep) {
+      html += '<div class="step"><span class="n">✓</span><span style="color:var(--muted)">' + st.btn + '</span></div>';
+      if (st.note) html += '<div class="note">↳ ' + st.note + '</div>';
+    } else if (i === scenStep) {
+      html += '<div class="step"><span class="n">' + (i+1) + '</span><button class="primary" id="btnNext">' + st.btn + '</button></div>';
+    } else {
+      html += '<div class="step"><span class="n">' + (i+1) + '</span><span style="color:#c0c6d0">' + st.btn + '</span></div>';
+    }
+  });
+  if (scenStep >= s.steps.length) {
+    html += '<div class="note">场景走完。可以点别的页签，或回到「自由试玩」乱推滑杆。</div>';
+  }
+  $('scenario').innerHTML = html;
+  const nb = $('btnNext');
+  if (nb) nb.addEventListener('click', () => {
+    SCENARIOS[activeScen].steps[scenStep].act();
+    scenStep++;
+    renderScenario();
+  });
+}
+renderTabs();
+startScenario(0);
+</script>
+</body>
+</html>

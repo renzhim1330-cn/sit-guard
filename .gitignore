@@ -1,0 +1,7 @@
+# 测试素材（票 05：视频体积大，不进仓库）
+test-assets/
+
+# 系统 / 编辑器
+.DS_Store
+Thumbs.db
+*.log

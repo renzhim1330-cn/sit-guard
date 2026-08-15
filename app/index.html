@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>坐姿小卫士</title>
+<!--
+  儿童坐姿提醒 MVP（按 .scratch/posture-app/spec.md 实现）。
+  运行：Chrome/Edge 双击本文件即可（摄像头需安全上下文：file:// 在 Chrome/Edge 可用；或部署 HTTPS/localhost）。
+  检测全程本地推理，视频不上传。MediaPipe 模型与 wasm 首次加载需联网（CDN）。
+-->
+<link rel="stylesheet" href="style.css">
+<script type="module">
+  import { FilesetResolver, PoseLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.mjs";
+  window.__mp = { FilesetResolver, PoseLandmarker };
+  window.dispatchEvent(new Event('mp-loaded'));
+</script>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <span class="brand"><span class="dot" id="statusDot"></span>坐姿小卫士</span>
+    <span class="statelabel" id="statusLabel">未开始</span>
+  </header>
+
+  <div class="banner hidden" id="cameraError">
+    <span id="cameraErrorMsg"></span>
+    <button class="ghost small" id="btnRetry">重试摄像头</button>
+  </div>
+
+  <div class="bgrid">
+
+    <div class="card">
+      <h3>我的坐姿</h3>
+      <div class="statuscard">
+        <div class="mascot m-idle" id="mascot">
+          <div class="eye l"></div><div class="eye r"></div>
+          <div class="mouth"></div>
+          <div class="cheek l"></div><div class="cheek r"></div>
+        </div>
+        <div class="stcol">
+          <div class="st-text" id="stText">准备好了吗？</div>
+          <div class="st-sub" id="stSub">坐好，点「开始学习」</div>
+          <button class="calbtn" id="btnCalibrate" disabled>校准 / 重新校准</button>
+        </div>
+      </div>
+      <div class="badges" id="badges"></div>
+    </div>
+
+    <div class="card">
+      <h3>学习时段</h3>
+      <div class="digits" id="timer">40:00</div>
+      <div class="timer-sub" id="timerSub">默认 40 分钟 · 已提醒 0 次</div>
+      <div class="btnrow">
+        <button class="btn-primary" id="btnStart" disabled>开始学习</button>
+        <button class="ghost" id="btnPause" disabled>暂停</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>提醒语音（预录 / 试听）</h3>
+      <div class="voiceopts">
+        <span>音量</span>
+        <input type="range" id="volRange" min="0" max="100" value="80">
+        <label class="mutechk"><input type="checkbox" id="chkMute"> 静音</label>
+      </div>
+      <ul class="voicelist" id="voiceList"></ul>
+      <div class="muted small">默认用浏览器语音合成朗读文案；点「录音」可换成家长 / 老师真实声音</div>
+    </div>
+
+    <div class="card">
+      <h3>今日小结</h3>
+      <div class="stats" id="todayStats"></div>
+      <div class="history" id="history"></div>
+    </div>
+
+  </div>
+
+  <footer>
+    <button class="minibtn" id="btnDemo">🎬 骨架演示模式</button>
+    <span class="muted small">检测全程在本机运行，画面不出设备</span>
+  </footer>
+</div>
+
+<video id="video" muted playsinline></video>
+
+<!-- 校准覆盖层 -->
+<div class="overlay" id="ovCalibrate">
+  <h2>先校准一下～</h2>
+  <p>请坐端正，眼睛看屏幕，然后点下面的按钮<br>我会记住你「坐好」的样子</p>
+  <button class="bigbtn" id="btnCalibrateDone">我坐好了，点这里</button>
+  <button class="closebtn" id="btnCalibrateCancel">取消</button>
+</div>
+
+<!-- 骨架演示覆盖层 -->
+<div class="overlay demo" id="ovDemo">
+  <h2>骨架演示模式</h2>
+  <canvas id="demoCanvas" width="360" height="480"></canvas>
+  <div class="badges demo-badges" id="demoBadges"></div>
+  <p class="note">摄像头画面 + 关键点叠加，仅用于展示检测效果</p>
+  <button class="closebtn" id="btnDemoClose">返回</button>
+</div>
+
+<!-- 学习小结覆盖层 -->
+<div class="overlay" id="ovSummary">
+  <h2>本次学习小结</h2>
+  <div class="sumgrid" id="sumText"></div>
+  <button class="closebtn" id="btnSummaryClose">太棒了，收下</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="measure.js"></script>
+<script src="engine.js"></script>
+<script src="voice.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

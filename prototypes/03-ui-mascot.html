@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>坐姿提醒 UI 原型 — 票 03</title>
+<!--
+票 03 UI 原型 — 三个结构迥异的界面方案，?variant=A|B|C 切换（底部浮动条 ◀▶ 或键盘 ←/→）。
+问题：坐姿提醒主界面长什么样？（吉祥物+状态；学习时段 40 分钟；校准；语音设置；演示模式；小结待票 06）
+A「伙伴陪伴」= 角色优先的陪伴式；B「学习驾驶舱」= 信息面板式；C「氛围灯」= 全屏氛围色+极简信息。
+页面上方为状态模拟条（真实 App 中状态由摄像头检测驱动）。一次性原型，throwaway。
+-->
+<style>
+  :root { --ok:#16a34a; --warn:#f59e0b; --bad:#ef4444; --ink:#1f2937; --muted:#6b7280; --line:#e5e7eb; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif; background:#eef1f5; color:var(--ink); }
+  .pagehead { max-width:520px; margin:14px auto 6px; padding:0 14px; font-size:13px; color:var(--muted); text-align:center; }
+  .stage { display:flex; justify-content:center; padding:6px 0 90px; }
+  .phone { position:relative; width:380px; height:720px; background:#fff; border:10px solid #1f2937; border-radius:36px; overflow:hidden; box-shadow:0 20px 50px rgba(0,0,0,.18); }
+  .screen { position:absolute; inset:0; overflow:hidden; }
+
+  /* 状态模拟条（页面顶部，非产品界面） */
+  .statebar { position:fixed; top:8px; left:50%; transform:translateX(-50%); z-index:60; display:flex; gap:6px; flex-wrap:wrap; justify-content:center; }
+  .statebar button { border:1px solid #cbd5e1; background:#fff; border-radius:999px; padding:4px 12px; font-size:12px; cursor:pointer; }
+  .statebar button.on { background:#1f2937; color:#fff; border-color:#1f2937; }
+
+  /* 浮动切换条（底部，非产品界面） */
+  .switcher { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); z-index:70; display:flex; align-items:center; gap:14px; background:#1f2937; color:#fff; border-radius:999px; padding:10px 20px; box-shadow:0 8px 24px rgba(0,0,0,.35); }
+  .switcher button { background:transparent; border:none; color:#fff; font-size:20px; cursor:pointer; padding:0 4px; line-height:1; }
+  .switcher .label { font-size:14px; min-width:150px; text-align:center; }
+
+  /* 吉祥物 */
+  .mascot { position:relative; border-radius:50%; }
+  .mascot .eye { position:absolute; top:37%; width:11%; height:15%; background:#333; border-radius:50%; }
+  .mascot .eye.l { left:26%; } .mascot .eye.r { left:63%; }
+  .mascot .mouth { position:absolute; left:50%; transform:translateX(-50%); top:60%; }
+  .mascot .cheek { position:absolute; top:53%; width:14%; height:9%; background:#fb7185; opacity:.55; border-radius:50%; display:none; }
+  .mascot .cheek.l { left:14%; } .mascot .cheek.r { left:72%; }
+  .mascot.m-idle   { background:linear-gradient(135deg,#e2e8f0,#cbd5e1); }
+  .mascot.m-ok     { background:linear-gradient(135deg,#bbf7d0,#4ade80); }
+  .mascot.m-warn   { background:linear-gradient(135deg,#fef3c7,#fbbf24); }
+  .mascot.m-bad    { background:linear-gradient(135deg,#fecaca,#f87171); }
+  .mascot.m-remind { background:linear-gradient(135deg,#fecaca,#ef4444); animation:pulse .8s infinite; }
+  @keyframes pulse { 50% { transform:scale(1.06); } }
+  .mascot.m-idle .eye { height:8%; }
+  .mascot.m-remind .eye { width:14%; height:19%; }
+  .mascot.m-idle .mouth { width:26%; height:12%; border-bottom:5px solid #333; border-radius:50%; }
+  .mascot.m-ok .mouth { width:36%; height:24%; border:5px solid #333; border-top:none; border-radius:0 0 999px 999px; }
+  .mascot.m-warn .mouth { width:26%; height:4px; border-bottom:5px solid #333; border-radius:2px; }
+  .mascot.m-bad .mouth { width:32%; height:16px; border-top:6px solid #333; border-radius:999px 999px 0 0; }
+  .mascot.m-remind .mouth { width:20%; height:22%; border:5px solid #333; border-radius:50%; }
+  .mascot.m-ok .cheek, .mascot.m-remind .cheek { display:block; }
+
+  /* 通用控件 */
+  button.act { border:none; cursor:pointer; font-family:inherit; }
+  .btn-primary { background:#2563eb; color:#fff; border-radius:999px; padding:14px 0; width:100%; font-size:17px; font-weight:600; border:none; cursor:pointer; }
+  .btn-danger { background:#ef4444; }
+  .mini-btn { background:#f1f5f9; border:1px solid var(--line); border-radius:12px; padding:8px 10px; font-size:12px; color:var(--muted); cursor:pointer; }
+
+  /* —— 方案 A：伙伴陪伴 —— */
+  .vA { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; padding:26px 24px 24px; background:#fff; }
+  .vA .toprow { width:100%; display:flex; justify-content:space-between; align-items:center; }
+  .vA .brand { font-weight:700; font-size:16px; }
+  .vA .chip { font-size:12px; background:#f1f5f9; border-radius:999px; padding:5px 12px; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .vA .hero { margin:auto; }
+  .vA .ring { border-radius:50%; padding:10px; }
+  .vA .status-text { font-size:24px; font-weight:700; margin-bottom:2px; }
+  .vA .status-sub { font-size:14px; color:var(--muted); margin-bottom:22px; }
+  .vA .actions { width:100%; display:flex; flex-direction:column; gap:10px; }
+  .vA .minirow { display:flex; gap:8px; justify-content:center; }
+
+  /* —— 方案 B：学习驾驶舱 —— */
+  .vB { position:absolute; inset:0; display:flex; flex-direction:column; background:#f6f8fb; }
+  .vB header { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; background:#fff; border-bottom:1px solid var(--line); font-weight:700; }
+  .vB .dot { width:10px; height:10px; border-radius:50%; background:var(--ok); display:inline-block; margin-right:8px; }
+  .vB .bgrid { flex:1; overflow:auto; padding:14px; display:flex; flex-direction:column; gap:12px; }
+  .vB .card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px 16px; }
+  .vB .card h3 { margin:0 0 8px; font-size:13px; color:var(--muted); font-weight:600; }
+  .vB .statuscard { display:flex; align-items:center; gap:14px; }
+  .vB .digits { font-size:40px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:1px; }
+  .vB .sessionrow { display:flex; justify-content:space-between; align-items:center; }
+  .vB .calbtn { background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; border-radius:10px; padding:8px 14px; font-size:13px; cursor:pointer; }
+  .vB .voicelist { list-style:none; margin:0; padding:0; }
+  .vB .voicelist li { display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px dashed var(--line); font-size:14px; }
+  .vB .voicelist li:last-child { border-bottom:none; }
+  .vB .play { cursor:pointer; font-size:13px; color:#2563eb; }
+  .vB .stats { display:flex; gap:10px; }
+  .vB .stats div { flex:1; text-align:center; }
+  .vB .stats b { display:block; font-size:18px; }
+  .vB .stats span { font-size:11px; color:var(--muted); }
+  .vB footer { padding:10px 20px 16px; background:#fff; border-top:1px solid var(--line); }
+
+  /* —— 方案 C：氛围灯 —— */
+  .vC { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; text-align:center; color:#fff; transition:background .4s; }
+  .vC.s-idle { background:linear-gradient(160deg,#64748b,#334155); }
+  .vC.s-ok { background:linear-gradient(160deg,#22c55e,#15803d); }
+  .vC.s-warn { background:linear-gradient(160deg,#fbbf24,#d97706); }
+  .vC.s-bad { background:linear-gradient(160deg,#f87171,#dc2626); }
+  .vC.s-remind { background:linear-gradient(160deg,#f87171,#b91c1c); }
+  .vC .c-top { width:100%; display:flex; justify-content:space-between; padding:18px 20px; }
+  .vC .c-top button { background:rgba(255,255,255,.22); border:none; color:#fff; border-radius:999px; padding:6px 14px; font-size:12px; cursor:pointer; }
+  .vC .c-center { margin:auto; display:flex; flex-direction:column; align-items:center; gap:14px; padding:0 26px; }
+  .vC .big-text { font-size:34px; font-weight:800; }
+  .vC .sub { font-size:15px; opacity:.9; }
+  .vC .c-bottom { width:100%; padding:0 28px 30px; display:flex; flex-direction:column; gap:12px; }
+  .vC .digits { font-size:44px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .vC .btn-primary { background:rgba(255,255,255,.95); color:#1f2937; }
+  .vC .mini-links { display:flex; gap:14px; justify-content:center; font-size:12px; opacity:.85; }
+  .vC .mini-links span { cursor:pointer; text-decoration:underline; }
+
+  /* 覆盖层（校准 / 语音 / 演示模式——三个方案共用，是模式不是布局） */
+  .overlay { position:absolute; inset:0; background:rgba(15,23,42,.82); z-index:50; display:none; flex-direction:column; align-items:center; justify-content:center; color:#fff; gap:16px; text-align:center; padding:30px; }
+  .overlay.open { display:flex; }
+  .overlay h2 { margin:0; }
+  .overlay .bigbtn { background:#fff; color:#1f2937; font-size:18px; font-weight:700; border-radius:999px; padding:16px 34px; border:none; cursor:pointer; }
+  .overlay .close { background:transparent; border:1px solid rgba(255,255,255,.5); color:#fff; border-radius:999px; padding:8px 18px; cursor:pointer; font-size:13px; }
+  .overlay ul { list-style:none; padding:0; margin:0; width:80%; }
+  .overlay li { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px dashed rgba(255,255,255,.3); }
+  .overlay .note { font-size:12px; opacity:.7; }
+  .skeleton-wrap { background:#0f172a; }
+  .toast { position:absolute; bottom:90px; left:50%; transform:translateX(-50%); background:#1f2937; color:#fff; font-size:13px; border-radius:999px; padding:8px 18px; z-index:80; opacity:0; transition:opacity .2s; pointer-events:none; }
+  .toast.show { opacity:1; }
+</style>
+</head>
+<body>
+
+<div class="pagehead">票 03 · 坐姿提醒主界面 · 三个结构不同的方案（手机竖屏框；平板横屏时 B 类面板可铺满）</div>
+
+<div class="statebar" id="statebar"></div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="screen" id="root"></div>
+    <div class="overlay" id="ovCalibrate">
+      <h2>先校准一下～</h2>
+      <p style="margin:0;opacity:.85;">请坐端正，然后点下面的按钮<br>记住你「坐好」的样子</p>
+      <button class="bigbtn" data-action="calibrate-done">我坐好了，点这里</button>
+      <button class="close" data-action="overlay-close">取消</button>
+    </div>
+    <div class="overlay" id="ovVoice">
+      <h2>提醒语音</h2>
+      <ul id="voiceList"></ul>
+      <p class="note">最终文案由票 04 定稿；语音由家长 / 老师预录</p>
+      <button class="close" data-action="overlay-close">关闭</button>
+    </div>
+    <div class="overlay skeleton-wrap" id="ovDemo">
+      <h2>骨架演示模式</h2>
+      <svg width="200" height="320" viewBox="0 0 200 320">
+        <g stroke="#4ade80" stroke-width="4" fill="none">
+          <line x1="100" y1="60" x2="100" y2="120"/><line x1="100" y1="120" x2="100" y2="230"/>
+          <line x1="100" y1="120" x2="40" y2="150"/><line x1="100" y1="120" x2="160" y2="150"/>
+          <line x1="100" y1="230" x2="50" y2="300"/><line x1="100" y1="230" x2="150" y2="300"/>
+        </g>
+        <g fill="#fbbf24">
+          <circle cx="100" cy="50" r="7"/><circle cx="62" cy="88" r="6"/><circle cx="138" cy="88" r="6"/>
+          <circle cx="40" cy="150" r="7"/><circle cx="160" cy="150" r="7"/>
+          <circle cx="50" cy="300" r="7"/><circle cx="150" cy="300" r="7"/>
+        </g>
+        <g fill="#e2e8f0" font-size="11" text-anchor="middle">
+          <text x="100" y="32">鼻</text><text x="62" y="72">耳</text><text x="138" y="72">耳</text>
+          <text x="32" y="172">肩</text><text x="168" y="172">肩</text><text x="42" y="292">髋</text><text x="158" y="292">髋</text>
+        </g>
+      </svg>
+      <p class="note">真实版本 = 摄像头画面 + MediaPipe 关键点叠加，仅展示检测效果</p>
+      <button class="close" data-action="overlay-close">返回</button>
+    </div>
+    <div class="toast" id="toast"></div>
+  </div>
+</div>
+
+<div class="switcher" id="switcher"></div>
+
+<script>
+/* ============ 状态模拟（真实 App 中由摄像头检测驱动） ============ */
+const STATES = {
+  idle:    { label:'未开始', text:'准备好了吗？', sub:'坐好，点「开始学习」', mood:'idle' },
+  ok:      { label:'坐得好', text:'坐得真棒！', sub:'背挺直，继续保持～', mood:'ok' },
+  warn:    { label:'疑似',   text:'要注意咯', sub:'背有点弯了，挺直一点～', mood:'warn' },
+  bad:     { label:'超标·宽限中', text:'头太低啦', sub:'把脑袋抬起来一点哦～', mood:'bad' },
+  reminding:{ label:'提醒中', text:'叮咚～', sub:'正在提醒：背挺直～', mood:'remind' },
+};
+let sim = { state:'idle', timerTotal:40*60, timerLeft:40*60, running:false, calibrateOk:false, reminders:2 };
+
+const VARIANTS = { A:{name:'伙伴陪伴'}, B:{name:'学习驾驶舱'}, C:{name:'氛围灯'} };
+let current = (new URLSearchParams(location.search).get('variant') || 'A').toUpperCase();
+if (!VARIANTS[current]) current = 'A';
+
+const root = document.getElementById('root');
+const fmtTime = (s) => String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+
+/* ============ 共用小组件 ============ */
+function mascotHTML(mood, px) {
+  return '<div class="mascot m-'+mood+'" style="width:'+px+'px;height:'+px+'px">' +
+    '<div class="eye l"></div><div class="eye r"></div><div class="mouth"></div>' +
+    '<div class="cheek l"></div><div class="cheek r"></div></div>';
+}
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 1600);
+}
+
+/* ============ 方案 A：伙伴陪伴 ============ */
+function variantA() {
+  const s = STATES[sim.state];
+  const pct = Math.round(sim.timerLeft / sim.timerTotal * 100);
+  const ringColor = sim.state==='idle' ? '#94a3b8' : sim.state==='ok' ? 'var(--ok)' : sim.state==='warn' ? 'var(--warn)' : 'var(--bad)';
+  const startBtn = sim.running
+    ? '<button class="btn-primary btn-danger" data-action="end">结束学习</button>'
+    : '<button class="btn-primary" data-action="start">开始学习</button>';
+  return '<div class="vA">' +
+    '<div class="toprow"><span class="brand">坐姿小卫士</span>' +
+    '<span class="chip">' + (sim.running ? '学习时段 ' + fmtTime(sim.timerLeft) : '今日已提醒 '+sim.reminders+' 次') + '</span></div>' +
+    '<div class="hero"><div class="ring" style="background:conic-gradient('+ringColor+' '+pct+'%, #e5e7eb 0)">' +
+    '<div style="background:#fff;border-radius:50%;padding:6px">' + mascotHTML(s.mood, 190) + '</div></div></div>' +
+    '<div class="status-text">' + s.text + '</div>' +
+    '<div class="status-sub">' + s.sub + '</div>' +
+    '<div class="actions">' + startBtn +
+    '<div class="minirow">' +
+      '<button class="mini-btn" data-action="calibrate">校准</button>' +
+      '<button class="mini-btn" data-action="voice">语音</button>' +
+      '<button class="mini-btn" data-action="demo">演示</button>' +
+    '</div></div></div>';
+}
+
+/* ============ 方案 B：学习驾驶舱 ============ */
+function variantB() {
+  const s = STATES[sim.state];
+  const dotColor = sim.state==='ok' ? 'var(--ok)' : sim.state==='warn' ? 'var(--warn)' : sim.state==='bad'||sim.state==='reminding' ? 'var(--bad)' : '#94a3b8';
+  return '<div class="vB">' +
+    '<header><span><span class="dot" style="background:'+dotColor+'"></span>坐姿小卫士</span><span style="font-size:12px;color:var(--muted);font-weight:400">' + s.label + '</span></header>' +
+    '<div class="bgrid">' +
+      '<div class="card"><h3>我的坐姿</h3><div class="statuscard">' + mascotHTML(s.mood, 84) +
+        '<div><div style="font-weight:700;font-size:17px">' + s.text + '</div>' +
+        '<div style="font-size:13px;color:var(--muted);margin:2px 0 8px">' + s.sub + '</div>' +
+        '<button class="calbtn" data-action="calibrate">重新校准</button></div></div></div>' +
+      '<div class="card"><h3>学习时段</h3><div class="sessionrow">' +
+        '<div><div class="digits">' + fmtTime(sim.timerLeft) + '</div>' +
+        '<div style="font-size:12px;color:var(--muted)">默认 40 分钟 · 已提醒 ' + sim.reminders + ' 次</div></div>' +
+        '<button class="btn-primary" style="width:auto;padding:10px 22px;font-size:15px" data-action="' + (sim.running?'end':'start') + '">' + (sim.running?'结束':'开始') + '</button>' +
+      '</div></div>' +
+      '<div class="card"><h3>提醒语音（预录）</h3><ul class="voicelist">' +
+        '<li>背挺直～<span class="play" data-action="play">▶ 试听</span></li>' +
+        '<li>头抬起来一点哦～<span class="play" data-action="play">▶ 试听</span></li>' +
+        '<li>坐正啦，真棒！<span class="play" data-action="play">▶ 试听</span></li>' +
+        '<li style="color:var(--muted)">＋ 添加家长 / 老师录音</li></ul></div>' +
+      '<div class="card"><h3>今日小结（形式待票 06 定）</h3><div class="stats">' +
+        '<div><b>18 分</b><span>良好时长</span></div><div><b>2 次</b><span>提醒</span></div><div><b>3 次</b><span>坐正表扬</span></div>' +
+      '</div></div>' +
+    '</div>' +
+    '<footer><button class="mini-btn" style="width:100%;padding:10px" data-action="demo">🎬 骨架演示模式（展示检测效果）</button></footer>' +
+  '</div>';
+}
+
+/* ============ 方案 C：氛围灯 ============ */
+function variantC() {
+  const s = STATES[sim.state];
+  return '<div class="vC s-' + sim.state + '">' +
+    '<div class="c-top"><button data-action="voice">🎤 语音</button><button data-action="calibrate">校准</button></div>' +
+    '<div class="c-center">' + mascotHTML(s.mood, 72) +
+      '<div class="big-text">' + s.text + '</div><div class="sub">' + s.sub + '</div></div>' +
+    '<div class="c-bottom">' +
+      '<div class="digits">' + (sim.running ? fmtTime(sim.timerLeft) : '40:00') + '</div>' +
+      '<button class="btn-primary" data-action="' + (sim.running?'end':'start') + '">' + (sim.running?'结束学习':'开始学习') + '</button>' +
+      '<div class="mini-links"><span data-action="demo">骨架演示</span></div>' +
+    '</div></div>';
+}
+
+/* ============ 渲染与动作 ============ */
+function render() {
+  root.innerHTML = current==='A' ? variantA() : current==='B' ? variantB() : variantC();
+}
+
+root.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-action]');
+  if (!b) return;
+  const a = b.dataset.action;
+  if (a === 'start') { sim.running = true; sim.state = 'ok'; }
+  else if (a === 'end') { sim.running = false; sim.timerLeft = sim.timerTotal; sim.state = 'idle'; }
+  else if (a === 'calibrate') openOverlay('ovCalibrate');
+  else if (a === 'calibrate-done') { sim.calibrateOk = true; closeOverlays(); toast('✅ 校准完成（已记录标准坐姿）'); }
+  else if (a === 'voice') openOverlay('ovVoice');
+  else if (a === 'demo') openOverlay('ovDemo');
+  else if (a === 'overlay-close') closeOverlays();
+  else if (a === 'play') toast('🔊 演示播放中…（文案由票 04 定稿）');
+  render();
+});
+
+function openOverlay(id) { closeOverlays(); document.getElementById(id).classList.add('open'); }
+function closeOverlays() { document.querySelectorAll('.overlay').forEach(o => o.classList.remove('open')); }
+
+setInterval(() => { if (sim.running && sim.timerLeft > 0) { sim.timerLeft--; if (sim.timerLeft === 0) sim.running = false; render(); } }, 1000);
+
+/* ============ 状态模拟条 ============ */
+(function buildStatebar() {
+  const bar = document.getElementById('statebar');
+  bar.innerHTML = Object.keys(STATES).map(k =>
+    '<button data-state="'+k+'" class="'+(k===sim.state?'on':'')+'">'+STATES[k].label+'</button>').join(' ');
+  bar.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-state]'); if (!b) return;
+    sim.state = b.dataset.state;
+    bar.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    render();
+  });
+})();
+
+/* ============ 语音列表（覆盖层） ============ */
+document.getElementById('voiceList').innerHTML = ['背挺直～','头抬起来一点哦～','坐正啦，真棒！'].map(v =>
+  '<li>'+v+'<span class="play" style="cursor:pointer" data-action="play">▶ 试听</span></li>').join('');
+
+/* ============ 浮动切换条 ============ */
+function goTo(v) {
+  current = v;
+  try { history.replaceState(null, '', '?variant=' + v); } catch (err) { /* file:// 下忽略 */ }
+  document.getElementById('switcher').querySelector('.label').textContent = v + ' · ' + VARIANTS[v].name;
+  render();
+}
+const sw = document.getElementById('switcher');
+sw.innerHTML = '<button id="prev" aria-label="上一个">◀</button><span class="label"></span><button id="next" aria-label="下一个">▶</button>';
+sw.querySelector('#prev').addEventListener('click', () => { const ks=Object.keys(VARIANTS); goTo(ks[(ks.indexOf(current)+ks.length-1)%ks.length]); });
+sw.querySelector('#next').addEventListener('click', () => { const ks=Object.keys(VARIANTS); goTo(ks[(ks.indexOf(current)+1)%ks.length]); });
+document.addEventListener('keydown', (e) => {
+  const tag = (document.activeElement && document.activeElement.tagName) || '';
+  if (['INPUT','TEXTAREA','SELECT'].includes(tag)) return;
+  const ks = Object.keys(VARIANTS);
+  if (e.key === 'ArrowLeft') goTo(ks[(ks.indexOf(current)+ks.length-1)%ks.length]);
+  if (e.key === 'ArrowRight') goTo(ks[(ks.indexOf(current)+1)%ks.length]);
+});
+
+goTo(current);
+</script>
+</body>
+</html>
