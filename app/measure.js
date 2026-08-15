@@ -36,10 +36,13 @@
       const noseW = w[0];
       const torsoLen = Math.hypot(shW.x, shW.y, shW.z);
       if (torsoLen > 0.05) { // 米制下躯干应远大于 5cm，否则视为 world 数据异常
-        // 驼背：肩相对髋（原点）与竖直方向的夹角（度），前倾/后仰都算偏离
-        slouch = deg(Math.atan2(Math.hypot(shW.x, shW.z), Math.abs(shW.y)));
-        // 头过低：(鼻高−肩高)/躯干长，越小=头越低（基线约 0.5 上下）
-        headDrop = (noseW.y - shW.y) / torsoLen;
+        // 驼背：肩相对髋（原点）偏离竖直的角度（度）。只取前后(z)分量、去掉左右(x)，
+        //   歪身/侧倾不再被算成驼背；前倾/后仰双向都算偏离（判定层按绝对值）。
+        slouch = deg(Math.atan2(Math.abs(shW.z), Math.abs(shW.y)));
+        // 头过低：鼻相对肩的高度除以肩高（基线约 0.5 上下）。
+        //   除以肩高可扣除「身体前倾」的影响——前倾时鼻、肩同步下降，比值不变，
+        //   只有头单独低下来（脖子弯）比值才变小，与驼背检测解耦。
+        headDrop = (noseW.y - shW.y) / Math.max(shW.y, 0.1);
         usedWorld = true;
       }
     }
