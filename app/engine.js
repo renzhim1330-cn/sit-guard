@@ -1,7 +1,9 @@
 /* 判定引擎（spec §4.3，源自 prototypes/02-posture-thresholds.html 的 createEngine，
  * 经票 02 定稿）。纯模块、无 DOM 依赖。
  * 关键设计：不做度量平滑（EMA 渐近偏差 bug）；抗误报靠「迟滞带 + 持续宽限计时」；
- * 票 04 新增：坐正表扬最小间隔 20s；票 07 新增：resetGrace（恢复检测时宽限清零）。
+ * 票 04：坐正表扬 ≥20s 间隔；票 07：resetGrace（恢复检测时宽限清零）。
+ * 修订（用户实测反馈）：表扬必须「恢复到正常带并保持 praiseHoldSeconds」才触发——
+ * 原先「离开超标带即表扬」会在偏离值徘徊于退出线附近时被测量抖动触发误表扬。
  */
 (function (global) {
   'use strict';
@@ -9,14 +11,16 @@
   function createEngine(cfg) {
     const keys = Object.keys(cfg.postures);
     let baseline = null;
-    const band = {}, grace = {};
+    const band = {}, grace = {}, okSince = {}, wasBad = {};
     let cooldownLeft = 0, lastReminded = null, streakSame = 0, reminderTotal = 0, time = 0;
     let praiseCount = 0, lastPraiseAt = -Infinity;
     const snapshot = {};
 
     function calibrate(current) {
       baseline = { ...current };
-      for (const k of keys) { band[k] = 'ok'; grace[k] = 0; }
+      for (const k of keys) {
+        band[k] = 'ok'; grace[k] = 0; okSince[k] = -1; wasBad[k] = false;
+      }
       cooldownLeft = 0; lastReminded = null; streakSame = 0; reminderTotal = 0;
       praiseCount = 0; lastPraiseAt = -Infinity;
       return { ...baseline };
@@ -41,11 +45,20 @@
         if (prev === 'ok' && d >= t1) next = 'warn';
         else if (prev === 'warn') { if (d >= t2) next = 'bad'; else if (d < t1 - hys) next = 'ok'; }
         else if (prev === 'bad' && d < t2 - hys) next = 'warn';
-        if (prev === 'bad' && next !== 'bad') {   // 坐正表扬（票 04：≥20s 间隔）
-          if (time - lastPraiseAt >= cfg.praiseMinInterval) {
+        // 坐正表扬（修订）：必须恢复到「正常」带并稳定保持 praiseHoldSeconds，
+        // 且此前确实到过「超标」，才表扬（票 04：≥20s 间隔）。
+        // 防止偏离值徘徊在退出线附近时被测量抖动触发误表扬。
+        if (next === 'ok') {
+          if (prev !== 'ok') okSince[k] = time;
+          if (wasBad[k] && okSince[k] >= 0 && time - okSince[k] >= cfg.praiseHoldSeconds &&
+              time - lastPraiseAt >= cfg.praiseMinInterval) {
             events.push({ type: 'praise', posture: k, at: time });
             praiseCount += 1; lastPraiseAt = time;
+            wasBad[k] = false;   // 本次恢复已表扬，下次需再犯再恢复才表扬
           }
+        } else {
+          okSince[k] = -1;
+          if (next === 'bad') wasBad[k] = true;
         }
         band[k] = next;
         if (next === 'bad') { grace[k] += dt; if (grace[k] >= cfg.graceSeconds) ready.push(k); }

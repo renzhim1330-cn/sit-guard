@@ -12,7 +12,7 @@
       headDrop: { label:'头过低', t1:0.12, t2:0.20, hys:0.03, fmt:(d)=>(d*100).toFixed(0)+'%' },
       tilt:     { label:'侧倾',   t1:8,    t2:12,   hys:2,    fmt:(d)=>d.toFixed(1)+'°' },
     },
-    graceSeconds: 3.5, cooldownSeconds: 30, maxRepeatSame: 2, praiseMinInterval: 20,
+    graceSeconds: 3.5, cooldownSeconds: 30, maxRepeatSame: 2, praiseMinInterval: 20, praiseHoldSeconds: 0.5,
   };
   const POSTURE_TEXT = {
     slouch:   { t:'背要挺直哦', s:'背有点弯了，挺直一点～' },
