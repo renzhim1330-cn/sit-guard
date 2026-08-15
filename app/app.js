@@ -72,14 +72,15 @@
   }
 
   async function boot() {
-    try {
-      await initMediaPipe();
-    } catch (e) {
-      showBanner('检测模型加载失败（首次运行需联网下载）：' + e.message);
-      return;
-    }
-    const camOk = await initCamera();
-    if (!camOk) return;
+    // 模型下载与摄像头授权并行：首次访问模型需下载数秒，期间立即弹出摄像头授权，避免干等
+    const [modelOk, camOk] = await Promise.all([
+      initMediaPipe().then(() => true).catch((e) => {
+        showBanner('检测模型加载失败（首次运行需联网下载）：' + e.message);
+        return false;
+      }),
+      initCamera(),
+    ]);
+    if (!modelOk || !camOk) return;
     app.ready = true;
     $('btnStart').disabled = false;
     $('btnCalibrate').disabled = false;
@@ -271,12 +272,14 @@
   }
 
   function stateLabel() {
+    if (!app.ready) return '加载中…';
     if (app.lost) return '看不到你啦';
     if (!app.running) return '未开始';
     if (app.paused) return '已暂停';
     return { ok: '学习中', warn: '要注意咯', bad: '超标·宽限中', remind: '提醒中' }[app.mood] || '学习中';
   }
   function statusText() {
+    if (!app.ready) return ['正在加载检测模型…', '首次访问需联网下载（约几秒），请稍候'];
     if (app.lost) return app.reinforce ? ['还在吗？', '回来继续学习哦～'] : ['看不到你啦', '坐回来继续学习吧～'];
     if (!app.running) return ['准备好了吗？', '坐好，点「开始学习」'];
     if (app.paused) return ['已暂停', '点「继续」回到学习'];
