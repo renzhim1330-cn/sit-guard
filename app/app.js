@@ -24,7 +24,7 @@
   const video = $('video');
   let poseLandmarker = null, lastTs = performance.now(), lastVideoTime = -1;
   let demoActive = false, calibratePendingStart = false;
-  let recorder = null, recordingKey = null;
+  let recorder = null, recordingKey = null, recordingIdx = -1;
 
   const app = {
     ready: false, calibrated: false,
@@ -331,46 +331,52 @@
 
   /* ---------------- 语音列表 ---------------- */
   const VOICE_CATS = [
-    { key: 'slouch', name: '驼背', texts: SitGuardVoice.SCRIPTS.slouch },
-    { key: 'headDrop', name: '头过低', texts: SitGuardVoice.SCRIPTS.headDrop },
-    { key: 'tilt', name: '侧倾', texts: SitGuardVoice.SCRIPTS.tilt },
-    { key: 'fallback', name: '兜底（检测不清）', texts: SitGuardVoice.SCRIPTS.fallback },
-    { key: 'praise', name: '坐正表扬', texts: SitGuardVoice.SCRIPTS.praise },
-    { key: 'start', name: '开始学习', texts: SitGuardVoice.SCRIPTS.start },
-    { key: 'end', name: '结束学习', texts: SitGuardVoice.SCRIPTS.end },
+    { key: 'slouch', name: '驼背' },
+    { key: 'headDrop', name: '头过低' },
+    { key: 'tilt', name: '侧倾' },
+    { key: 'fallback', name: '兜底（检测不清）' },
+    { key: 'praise', name: '坐正表扬' },
+    { key: 'start', name: '开始学习' },
+    { key: 'end', name: '结束学习' },
   ];
   function renderVoiceList() {
     const warn = SitGuardVoice.hasZhVoice ? '' :
       '<div class="voicewarn">⚠️ 此设备没有中文语音包：提醒将播放提示音。建议点「● 录音」录入家长声音（更可靠、更有温度）。</div>';
     $('voiceList').innerHTML = warn + VOICE_CATS.map((c) => {
-      const has = SitGuardVoice.recording(c.key);
-      const texts = Array.isArray(c.texts) ? c.texts.join(' / ') : c.texts;
-      const recBtn = recordingKey === c.key
-        ? '<button class="rec-on" data-act="stoprec" data-k="' + c.key + '">⏹ 停止</button>'
-        : '<button data-act="rec" data-k="' + c.key + '" class="' + (has ? 'has-rec' : '') + '">' + (has ? '🔊 重录' : '● 录音') + '</button>';
-      return '<li><div class="vname"><b>' + c.name + (has ? '（已预录）' : '') + '</b><span>' + texts + '</span></div>' +
-        '<div class="vbtns">' +
-        '<button data-act="play" data-k="' + c.key + '">▶ 试听</button>' +
-        recBtn +
-        (has && recordingKey !== c.key ? '<button data-act="delrec" data-k="' + c.key + '">清空</button>' : '') +
-        '</div></li>';
+      const n = SitGuardVoice.textCount(c.key);
+      let rows = '';
+      for (let i = 0; i < n; i++) {
+        const has = SitGuardVoice.recording(c.key, i);
+        const isRec = recordingKey === c.key && recordingIdx === i;
+        const recBtn = isRec
+          ? '<button class="rec-on" data-act="stoprec" data-k="' + c.key + '" data-i="' + i + '">⏹ 停止</button>'
+          : '<button data-act="rec" data-k="' + c.key + '" data-i="' + i + '" class="' + (has ? 'has-rec' : '') + '">' + (has ? '🔊 重录' : '● 录音') + '</button>';
+        rows += '<li><div class="vname"><b>' + c.name + (n > 1 ? ' · 第' + (i + 1) + '句' : '') + (has ? '（已预录）' : '') + '</b><span>' + SitGuardVoice.SCRIPTS[c.key][i] + '</span></div>' +
+          '<div class="vbtns">' +
+          '<button data-act="play" data-k="' + c.key + '" data-i="' + i + '">▶ 试听</button>' +
+          recBtn +
+          (has && !isRec ? '<button data-act="delrec" data-k="' + c.key + '" data-i="' + i + '">清空</button>' : '') +
+          '</div></li>';
+      }
+      return rows;
     }).join('');
   }
 
   $('voiceList').addEventListener('click', (e) => {
     const b = e.target.closest('[data-act]'); if (!b) return;
     const k = b.dataset.k;
-    if (b.dataset.act === 'play') SitGuardVoice.play(k);
-    else if (b.dataset.act === 'rec') startRecord(k);
+    const i = +(b.dataset.i || 0);
+    if (b.dataset.act === 'play') SitGuardVoice.playSlot(k, i);
+    else if (b.dataset.act === 'rec') startRecord(k, i);
     else if (b.dataset.act === 'stoprec') stopRecord();
-    else if (b.dataset.act === 'delrec') { SitGuardVoice.removeRecording(k); renderVoiceList(); toast('已恢复默认朗读'); }
+    else if (b.dataset.act === 'delrec') { SitGuardVoice.removeRecording(k, i); renderVoiceList(); toast('已恢复默认朗读'); }
   });
 
-  async function startRecord(key) {
-    if (recorder) { stopRecord(); if (recordingKey === key) return; }
+  async function startRecord(key, idx) {
+    if (recorder) { stopRecord(); if (recordingKey === key && recordingIdx === idx) return; }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const myKey = key;
+      const myKey = key, myIdx = idx;
       const myRec = new MediaRecorder(stream);
       recorder = myRec;
       const chunks = [];
@@ -379,14 +385,14 @@
         stream.getTracks().forEach((t) => t.stop());
         const blob = new Blob(chunks, { type: myRec.mimeType || 'audio/webm' });
         const fr = new FileReader();
-        fr.onload = () => { SitGuardVoice.saveRecording(myKey, fr.result); toast('✅ 录音已保存'); renderVoiceList(); };
+        fr.onload = () => { SitGuardVoice.saveRecording(myKey, myIdx, fr.result); toast('✅ 录音已保存'); renderVoiceList(); };
         fr.readAsDataURL(blob);
         if (recorder === myRec) recorder = null;
-        if (recordingKey === myKey) recordingKey = null;
+        if (recordingKey === myKey && recordingIdx === myIdx) { recordingKey = null; recordingIdx = -1; }
       };
       myRec.start();
-      recordingKey = key;
-      toast('🔴 录音中……念：「' + (Array.isArray(SitGuardVoice.SCRIPTS[key]) ? SitGuardVoice.SCRIPTS[key][0] : SitGuardVoice.SCRIPTS[key]) + '」说完点「⏹ 停止」');
+      recordingKey = key; recordingIdx = idx;
+      toast('🔴 录音中……念：「' + SitGuardVoice.SCRIPTS[key][idx] + '」说完点「⏹ 停止」');
       renderVoiceList();
     } catch (e) {
       toast('录音失败（需麦克风权限）：' + e.message);
