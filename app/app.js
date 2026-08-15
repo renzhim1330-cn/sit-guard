@@ -84,6 +84,7 @@
     app.ready = true;
     $('btnStart').disabled = false;
     $('btnCalibrate').disabled = false;
+    $('btnDemoCalibrate').disabled = false;
     requestAnimationFrame(loop);
     toast('准备好了，先校准再开始～');
   }
@@ -203,11 +204,14 @@
     calibratePendingStart = pendingStart;
     $('ovCalibrate').classList.add('open');
   }
+  function closeCalibrate() {
+    $('ovCalibrate').classList.remove('open', 'on-top');
+  }
   function doCalibrate() {
     if (!app.liveMeasures) { toast('还没检测到你——请坐正面对摄像头再点'); return; }
     engine.calibrate(app.liveMeasures);
     app.calibrated = true;
-    $('ovCalibrate').classList.remove('open');
+    closeCalibrate();
     if (calibratePendingStart) { calibratePendingStart = false; startSession(); }
     else toast('✅ 校准完成（已记住你的标准坐姿）');
     render();
@@ -269,6 +273,7 @@
     $('stSub').textContent = s;
     renderBadges('badges');
     renderTimer();
+    $('btnDemoCalibrate').textContent = app.calibrated ? '重新校准' : '校准';
   }
 
   function stateLabel() {
@@ -457,13 +462,18 @@
   $('btnPause').addEventListener('click', togglePause);
   $('btnCalibrate').addEventListener('click', () => openCalibrate(false));
   $('btnCalibrateDone').addEventListener('click', doCalibrate);
-  $('btnCalibrateCancel').addEventListener('click', () => { $('ovCalibrate').classList.remove('open'); });
+  $('btnCalibrateCancel').addEventListener('click', closeCalibrate);
   $('btnDemo').addEventListener('click', () => { demoActive = true; $('ovDemo').classList.add('open'); });
+  // 演示模式里的校准：复用同一个校准覆盖层，但要叠在演示层之上（on-top）
+  $('btnDemoCalibrate').addEventListener('click', () => {
+    $('ovCalibrate').classList.add('on-top');
+    openCalibrate(false);
+  });
   $('btnDemoClose').addEventListener('click', () => { demoActive = false; $('ovDemo').classList.remove('open'); });
   $('btnSummaryClose').addEventListener('click', () => { $('ovSummary').classList.remove('open'); });
   $('btnRetry').addEventListener('click', async () => {
     const ok = await initCamera();
-    if (ok && poseLandmarker) { app.ready = true; $('btnStart').disabled = false; $('btnCalibrate').disabled = false; requestAnimationFrame(loop); }
+    if (ok && poseLandmarker) { app.ready = true; $('btnStart').disabled = false; $('btnCalibrate').disabled = false; $('btnDemoCalibrate').disabled = false; requestAnimationFrame(loop); }
   });
   $('volRange').addEventListener('input', (e) => { SitGuardVoice.setVolume(e.target.value / 100); });
   $('chkMute').addEventListener('change', (e) => { SitGuardVoice.setMuted(e.target.checked); });
