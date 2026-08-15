@@ -1,9 +1,17 @@
-/* 判定引擎（spec §4.3，源自 prototypes/02-posture-thresholds.html 的 createEngine，
- * 经票 02 定稿）。纯模块、无 DOM 依赖。
- * 关键设计：不做度量平滑（EMA 渐近偏差 bug）；抗误报靠「迟滞带 + 持续宽限计时」；
- * 票 04：坐正表扬 ≥20s 间隔；票 07：resetGrace（恢复检测时宽限清零）。
- * 修订（用户实测反馈）：表扬必须「恢复到正常带并保持 praiseHoldSeconds」才触发——
- * 原先「离开超标带即表扬」会在偏离值徘徊于退出线附近时被测量抖动触发误表扬。
+/* 判定引擎（spec §4.3，源自 prototypes/02-posture-thresholds.html 的 createEngine，经票 02 定稿）。
+ * 纯模块、无 DOM 依赖。
+ * 关键设计：不做度量平滑（EMA 渐近偏差 bug）；抗误报靠「迟滞带 + 宽限计时」。
+ *
+ * 提醒（对齐用户目标：不改正就持续提醒）：
+ *  - 超标持续满宽限（默认 3.5s）→ 提醒 → 冷却（默认 30s）→ 仍超标 → 再计宽限 → 再提醒，无限循环；
+ *  - 宽限「冻结不清零」：超标期间累计，短暂脱离超标带不清零（边界抖动不会重置进度），
+ *    被冷却压住时也不清零，冷却结束立即再提醒；
+ *  - 真正改正（全部姿态回到「正常」并保持 recoveryHoldSeconds，默认 6s）→ 宽限清零，重新开始。
+ *
+ * 表扬（对齐用户目标：必须全绿才表扬，一次恢复只表扬一次）：
+ *  - 三个姿态全部处于「正常」（黄色疑似不算），保持 praiseHoldSeconds（默认 6s），
+ *    且本次全绿周期内确实出现过超标（wasBadAny）→ 表扬一次；
+ *  - 表扬后本次全绿期间不再重复表扬；再次超标再恢复才再次表扬；≥praiseMinInterval（20s）。
  */
 (function (global) {
   'use strict';
@@ -11,17 +19,17 @@
   function createEngine(cfg) {
     const keys = Object.keys(cfg.postures);
     let baseline = null;
-    const band = {}, grace = {}, okSince = {}, wasBad = {};
-    let cooldownLeft = 0, lastReminded = null, streakSame = 0, reminderTotal = 0, time = 0;
+    const band = {}, grace = {};
+    let allOkSince = -1, wasBadAny = false;
+    let cooldownLeft = 0, reminderTotal = 0, time = 0;
     let praiseCount = 0, lastPraiseAt = -Infinity;
     const snapshot = {};
 
     function calibrate(current) {
       baseline = { ...current };
-      for (const k of keys) {
-        band[k] = 'ok'; grace[k] = 0; okSince[k] = -1; wasBad[k] = false;
-      }
-      cooldownLeft = 0; lastReminded = null; streakSame = 0; reminderTotal = 0;
+      for (const k of keys) { band[k] = 'ok'; grace[k] = 0; }
+      allOkSince = -1; wasBadAny = false;
+      cooldownLeft = 0; reminderTotal = 0;
       praiseCount = 0; lastPraiseAt = -Infinity;
       return { ...baseline };
     }
@@ -37,6 +45,7 @@
       time += dt;
       if (cooldownLeft > 0) cooldownLeft = Math.max(0, cooldownLeft - dt);
       const ready = [];
+      let allOk = true;
       for (const k of keys) {
         const d = Math.abs(raw[k] - baseline[k]);
         const { t1, t2, hys } = cfg.postures[k];
@@ -45,50 +54,54 @@
         if (prev === 'ok' && d >= t1) next = 'warn';
         else if (prev === 'warn') { if (d >= t2) next = 'bad'; else if (d < t1 - hys) next = 'ok'; }
         else if (prev === 'bad' && d < t2 - hys) next = 'warn';
-        // 坐正表扬（修订）：必须恢复到「正常」带并稳定保持 praiseHoldSeconds，
-        // 且此前确实到过「超标」，才表扬（票 04：≥20s 间隔）。
-        // 防止偏离值徘徊在退出线附近时被测量抖动触发误表扬。
-        if (next === 'ok') {
-          if (prev !== 'ok') okSince[k] = time;
-          if (wasBad[k] && okSince[k] >= 0 && time - okSince[k] >= cfg.praiseHoldSeconds &&
-              time - lastPraiseAt >= cfg.praiseMinInterval) {
-            events.push({ type: 'praise', posture: k, at: time });
-            praiseCount += 1; lastPraiseAt = time;
-            wasBad[k] = false;   // 本次恢复已表扬，下次需再犯再恢复才表扬
-          }
-        } else {
-          okSince[k] = -1;
-          if (next === 'bad') wasBad[k] = true;
-        }
         band[k] = next;
-        if (next === 'bad') { grace[k] += dt; if (grace[k] >= cfg.graceSeconds) ready.push(k); }
-        else grace[k] = 0;
+        if (next === 'bad') {
+          wasBadAny = true;                        // 本全绿周期内出现过超标（表扬的前提）
+          grace[k] += dt;                          // 宽限仅在超标期间累计
+          if (grace[k] >= cfg.graceSeconds) ready.push(k);
+        }
+        // 宽限冻结：脱离超标【不清零】（边界抖动 / 冷却压住都不重置进度），真正改正才清零
+        if (next !== 'ok') allOk = false;
         snapshot[k] = {
           band: next, deviation: d, current: raw[k], baseline: baseline[k],
           grace: grace[k], graceTotal: cfg.graceSeconds,
         };
       }
-      // 提醒裁决：同一刻只发一条，取相对阈值偏离最大者（d/t2）；冷却与同类上限压住其余
+
+      /* —— 全绿判定：改正（清零宽限）与表扬（仅本次恢复，一次） —— */
+      if (allOk) {
+        if (allOkSince < 0) allOkSince = time;
+        const okFor = time - allOkSince;
+        if (okFor >= cfg.recoveryHoldSeconds) {   // 真正改正：宽限清零，下次再犯从头计
+          for (const k of keys) grace[k] = 0;
+          allOkSince = -1;                         // 重新武装：破绿后重新计时
+        }
+        if (wasBadAny && okFor >= cfg.praiseHoldSeconds && time - lastPraiseAt >= cfg.praiseMinInterval) {
+          events.push({ type: 'praise', at: time });
+          praiseCount += 1; lastPraiseAt = time;
+          wasBadAny = false;                       // 一次恢复只表扬一次
+        }
+      } else {
+        allOkSince = -1;
+      }
+
+      /* —— 提醒裁决：同一刻只发一条，取相对阈值偏离最大者（d/t2）；无次数上限，冷却后继续 —— */
       if (ready.length) {
         ready.sort((a, b) =>
           (snapshot[b].deviation / cfg.postures[b].t2) - (snapshot[a].deviation / cfg.postures[a].t2));
         const k = ready[0];
-        grace[k] = 0;   // 无论发不发，都重新计满一轮宽限再尝试
         if (cooldownLeft > 0) {
-          // 冷却中：不发（票 04：间隔 ≥30s）
-        } else if (lastReminded === k && streakSame >= cfg.maxRepeatSame) {
-          events.push({ type: 'suppressed', posture: k, at: time, reason: '同类连续提醒已达上限' });
+          // 冷却中：压住（宽限冻结在就绪态，冷却一结束立即再提醒）
         } else {
           events.push({ type: 'reminder', posture: k, deviation: snapshot[k].deviation, at: time });
           reminderTotal += 1;
           cooldownLeft = cfg.cooldownSeconds;
-          streakSame = (lastReminded === k) ? streakSame + 1 : 1;
-          lastReminded = k;
+          grace[k] = 0;                            // 本轮提醒完成，重新计满宽限进入下一轮
         }
       }
       return {
         states: snapshot,
-        globals: { cooldownLeft, streakSame, lastReminded, reminderTotal, time, praiseCount },
+        globals: { cooldownLeft, reminderTotal, time, praiseCount },
         events,
       };
     }

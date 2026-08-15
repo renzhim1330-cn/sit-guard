@@ -12,7 +12,7 @@
       headDrop: { label:'头过低', t1:0.12, t2:0.20, hys:0.03, fmt:(d)=>(d*100).toFixed(0)+'%' },
       tilt:     { label:'侧倾',   t1:8,    t2:12,   hys:2,    fmt:(d)=>d.toFixed(1)+'°' },
     },
-    graceSeconds: 3.5, cooldownSeconds: 30, maxRepeatSame: 2, praiseMinInterval: 20, praiseHoldSeconds: 0.5,
+    graceSeconds: 3.5, cooldownSeconds: 30, praiseMinInterval: 20, praiseHoldSeconds: 6, recoveryHoldSeconds: 6,
   };
   const POSTURE_TEXT = {
     slouch:   { t:'背要挺直哦', s:'背有点弯了，挺直一点～' },
@@ -475,7 +475,7 @@
     const D = [];
     const add = (key, group, name, unit, min, max, step, get, set, exp, fmt) =>
       D.push({ key, group, name, unit, min, max, step, get, set, exp, fmt: fmt || ((v) => v + ' ' + unit) });
-    const ang = (v) => v.toFixed(1) + '°', pct = (v) => v.toFixed(0) + '%', sec = (v) => (v % 1 ? v.toFixed(1) : v) + ' 秒', cnt = (v) => v + ' 次';
+    const ang = (v) => v.toFixed(1) + '°', pct = (v) => v.toFixed(0) + '%', sec = (v) => (v % 1 ? v.toFixed(1) : v) + ' 秒';
     add('slouch.t1', '判定阈值', '驼背 · 疑似阈值', '°', 2, 16, 0.5, () => CFG.postures.slouch.t1, (v) => { CFG.postures.slouch.t1 = v; }, '偏离达到该角度开始「疑似」（黄脸）。越大越宽容。', ang);
     add('slouch.t2', '判定阈值', '驼背 · 超标阈值', '°', 6, 25, 0.5, () => CFG.postures.slouch.t2, (v) => { CFG.postures.slouch.t2 = v; }, '达到该角度进入「超标」，持续满宽限就语音提醒。', ang);
     add('slouch.hys', '判定阈值', '驼背 · 迟滞', '°', 0.5, 4, 0.5, () => CFG.postures.slouch.hys, (v) => { CFG.postures.slouch.hys = v; }, '防闪烁：回落这么多才退出当前状态。', ang);
@@ -487,16 +487,15 @@
     add('tilt.hys', '判定阈值', '侧倾 · 迟滞', '°', 0.5, 4, 0.5, () => CFG.postures.tilt.hys, (v) => { CFG.postures.tilt.hys = v; }, '防闪烁：回落这么多才退出当前状态。', ang);
     add('grace', '时间参数', '宽限时间', '秒', 1, 10, 0.5, () => CFG.graceSeconds, (v) => { CFG.graceSeconds = v; }, '连续超标多久才语音提醒。越大越「忍住」。', sec);
     add('cooldown', '时间参数', '提醒冷却', '秒', 10, 120, 5, () => CFG.cooldownSeconds, (v) => { CFG.cooldownSeconds = v; }, '两次提醒之间的最小间隔。', (v) => v + ' 秒');
-    add('maxRepeat', '时间参数', '同类连续上限', '次', 1, 5, 1, () => CFG.maxRepeatSame, (v) => { CFG.maxRepeatSame = v; }, '同一姿态最多连续提醒几次，超出就压住。', cnt);
     add('praiseMin', '时间参数', '表扬最小间隔', '秒', 5, 60, 5, () => CFG.praiseMinInterval, (v) => { CFG.praiseMinInterval = v; }, '两次坐正表扬之间至少隔多久。', (v) => v + ' 秒');
     return D;
   })();
 
-  /* 三档灵敏度预设（显示单位） */
+  /* 三档灵敏度预设（显示单位；同类连续上限已随「不改正就一直提醒」规则移除） */
   const PRESETS = {
-    loose: { name: '宽松', exp: '提醒更少、更温柔', values: { 'slouch.t1': 12, 'slouch.t2': 18, 'slouch.hys': 3, 'headDrop.t1': 20, 'headDrop.t2': 28, 'headDrop.hys': 4, 'tilt.t1': 12, 'tilt.t2': 18, 'tilt.hys': 3, grace: 5, cooldown: 45, maxRepeat: 2, praiseMin: 30 } },
-    standard: { name: '标准', exp: 'spec 默认值', values: { 'slouch.t1': 8, 'slouch.t2': 12, 'slouch.hys': 2, 'headDrop.t1': 12, 'headDrop.t2': 20, 'headDrop.hys': 3, 'tilt.t1': 8, 'tilt.t2': 12, 'tilt.hys': 2, grace: 3.5, cooldown: 30, maxRepeat: 2, praiseMin: 20 } },
-    strict: { name: '严格', exp: '更敏感、更及时', values: { 'slouch.t1': 6, 'slouch.t2': 9, 'slouch.hys': 1.5, 'headDrop.t1': 8, 'headDrop.t2': 14, 'headDrop.hys': 2, 'tilt.t1': 6, 'tilt.t2': 9, 'tilt.hys': 1.5, grace: 2.5, cooldown: 20, maxRepeat: 2, praiseMin: 10 } },
+    loose: { name: '宽松', exp: '提醒更少、更温柔', values: { 'slouch.t1': 12, 'slouch.t2': 18, 'slouch.hys': 3, 'headDrop.t1': 20, 'headDrop.t2': 28, 'headDrop.hys': 4, 'tilt.t1': 12, 'tilt.t2': 18, 'tilt.hys': 3, grace: 5, cooldown: 45, praiseMin: 30 } },
+    standard: { name: '标准', exp: 'spec 默认值', values: { 'slouch.t1': 8, 'slouch.t2': 12, 'slouch.hys': 2, 'headDrop.t1': 12, 'headDrop.t2': 20, 'headDrop.hys': 3, 'tilt.t1': 8, 'tilt.t2': 12, 'tilt.hys': 2, grace: 3.5, cooldown: 30, praiseMin: 20 } },
+    strict: { name: '严格', exp: '更敏感、更及时', values: { 'slouch.t1': 6, 'slouch.t2': 9, 'slouch.hys': 1.5, 'headDrop.t1': 8, 'headDrop.t2': 14, 'headDrop.hys': 2, 'tilt.t1': 6, 'tilt.t2': 9, 'tilt.hys': 1.5, grace: 2.5, cooldown: 20, praiseMin: 10 } },
   };
 
   function writeParams(values) {
