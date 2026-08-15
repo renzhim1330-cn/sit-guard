@@ -489,7 +489,7 @@
     add('slouch.t1', '判定阈值', '驼背 · 疑似阈值', '°', 2, 16, 0.5, () => CFG.postures.slouch.t1, (v) => { CFG.postures.slouch.t1 = v; }, '偏离达到该角度开始「疑似」（黄脸）。越大越宽容。', ang);
     add('slouch.t2', '判定阈值', '驼背 · 超标阈值', '°', 6, 25, 0.5, () => CFG.postures.slouch.t2, (v) => { CFG.postures.slouch.t2 = v; }, '达到该角度进入「超标」，持续满宽限就语音提醒。', ang);
     add('slouch.hys', '判定阈值', '驼背 · 迟滞', '°', 0.5, 4, 0.5, () => CFG.postures.slouch.hys, (v) => { CFG.postures.slouch.hys = v; }, '防闪烁：回落这么多才退出当前状态。', ang);
-    add('headDrop.t1', '判定阈值', '头过低 · 疑似阈值', '%', 4, 20, 1, () => CFG.postures.headDrop.t1 * 100, (v) => { CFG.postures.headDrop.t1 = v / 100; }, '鼻相对肩高度（已扣身体前倾）偏离该比例开始「疑似」。', pct);
+    add('headDrop.t1', '判定阈值', '头过低 · 疑似阈值', '%', 4, 20, 1, () => CFG.postures.headDrop.t1 * 100, (v) => { CFG.postures.headDrop.t1 = v / 100; }, '鼻高偏离达躯干长的该百分比开始「疑似」。', pct);
     add('headDrop.t2', '判定阈值', '头过低 · 超标阈值', '%', 8, 30, 1, () => CFG.postures.headDrop.t2 * 100, (v) => { CFG.postures.headDrop.t2 = v / 100; }, '达到该百分比进入「超标」。', pct);
     add('headDrop.hys', '判定阈值', '头过低 · 迟滞', '%', 1, 8, 1, () => CFG.postures.headDrop.hys * 100, (v) => { CFG.postures.headDrop.hys = v / 100; }, '防闪烁：回落这么多才退出当前状态。', pct);
     add('tilt.t1', '判定阈值', '侧倾 · 疑似阈值', '°', 2, 16, 0.5, () => CFG.postures.tilt.t1, (v) => { CFG.postures.tilt.t1 = v; }, '歪头 / 歪身达到该角度开始「疑似」。', ang);
