@@ -9,8 +9,8 @@
   const CFG = {
     postures: {
       slouch:   { label:'驼背',   t1:8,    t2:12,   hys:2,    fmt:(d)=>d.toFixed(1)+'°' },
-      headDrop: { label:'头过低', t1:0.12, t2:0.20, hys:0.03, fmt:(d)=>(d*100).toFixed(0)+'%' },
-      tilt:     { label:'侧倾',   t1:8,    t2:12,   hys:2,    fmt:(d)=>d.toFixed(1)+'°' },
+      headDrop: { label:'头过低', t1:0.10, t2:0.16, hys:0.03, fmt:(d)=>(d*100).toFixed(0)+'%' },
+      tilt:     { label:'侧倾',   t1:6,    t2:12,   hys:2,    fmt:(d)=>d.toFixed(1)+'°' },
     },
     graceSeconds: 3.5, cooldownSeconds: 30, praiseMinInterval: 20, praiseHoldSeconds: 6, recoveryHoldSeconds: 6,
   };
@@ -504,7 +504,7 @@
   /* 三档灵敏度预设（显示单位；同类连续上限已随「不改正就一直提醒」规则移除） */
   const PRESETS = {
     loose: { name: '宽松', exp: '提醒更少、更温柔', values: { 'slouch.t1': 12, 'slouch.t2': 18, 'slouch.hys': 3, 'headDrop.t1': 20, 'headDrop.t2': 28, 'headDrop.hys': 4, 'tilt.t1': 12, 'tilt.t2': 18, 'tilt.hys': 3, grace: 5, cooldown: 45, praiseMin: 30 } },
-    standard: { name: '标准', exp: 'spec 默认值', values: { 'slouch.t1': 8, 'slouch.t2': 12, 'slouch.hys': 2, 'headDrop.t1': 12, 'headDrop.t2': 20, 'headDrop.hys': 3, 'tilt.t1': 8, 'tilt.t2': 12, 'tilt.hys': 2, grace: 3.5, cooldown: 30, praiseMin: 20 } },
+    standard: { name: '标准', exp: '素材校准值（票 05/08）', values: { 'slouch.t1': 8, 'slouch.t2': 12, 'slouch.hys': 2, 'headDrop.t1': 10, 'headDrop.t2': 16, 'headDrop.hys': 3, 'tilt.t1': 6, 'tilt.t2': 12, 'tilt.hys': 2, grace: 3.5, cooldown: 30, praiseMin: 20 } },
     strict: { name: '严格', exp: '更敏感、更及时', values: { 'slouch.t1': 6, 'slouch.t2': 9, 'slouch.hys': 1.5, 'headDrop.t1': 8, 'headDrop.t2': 14, 'headDrop.hys': 2, 'tilt.t1': 6, 'tilt.t2': 9, 'tilt.hys': 1.5, grace: 2.5, cooldown: 20, praiseMin: 10 } },
   };
 

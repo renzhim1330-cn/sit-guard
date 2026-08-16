@@ -1,6 +1,7 @@
-# 测试素材（票 05：视频体积大，不进仓库；拍摄指南 README 保留）
+# 测试素材（票 05：视频体积大，不进仓库；拍摄指南与分析报告保留）
 test-assets/*
 !test-assets/README.md
+!test-assets/analysis-results.md
 
 # 系统 / 编辑器
 .DS_Store

@@ -21,7 +21,8 @@
 - [语音文案、语气与频率](issues/04-voice-script.md) — 文案库定稿：按姿态区分、每类 2 条随机轮换不连播、温和第二人称不升级；参数终值：宽限 3.5s / 冷却 30s / 同类 ≤2 / 表扬 ≥20s；开始+结束提示，休息待票 06
 - [MVP 功能边界与分期](issues/06-mvp-scope.md) — v1 定案：骨架演示/小结(简单统计)/本地 7 次历史进 v1；趴桌·离屏、评分趋势、番茄钟进 v2；v1 无中途休息；基本设置并入界面
 - [出画与多人入镜的处理策略](issues/07-frame-drop-handling.md) — 三档丢失：<5s 忽略 / ≥5s 离开态+暂停计时 / ≥30s 强化；离开态抑制提醒不播语音；恢复沿用基准+宽限清零；多人不特殊处理
-- [离线回放分析页（调阈值）](issues/08-offline-replay-analyzer.md) — 本地分析页 analyzer.html 完成：复用 measure.js 与 engine.js（离线=在线数值一致），输出各档偏离分布（均值/P25/P50/P75/max）、直方图、阈值建议、提醒触发帧与误报统计、CSV 基线导出；阈值终值待票 05 素材到位后验收确认
+- [采集测试素材](issues/05-test-footage.md) — 7 段素材到位（手机竖拍前置、书桌前方约 1 米、顺光/侧光），01-baseline~06-actions；拍摄参数与验证进展见票内，分析报告见 `test-assets/analysis-results.md`
+- [离线回放分析页（调阈值）](issues/08-offline-replay-analyzer.md) — 本地分析页 analyzer.html 完成：复用 measure.js 与 engine.js（离线=在线数值一致），输出各档偏离分布（均值/P25/P50/P75/max）、直方图、阈值建议、提醒触发帧与误报统计、CSV 基线导出；验收完成：七段素材出表、抗误报零误报；阈值已确认应用（驼背 8°/12°、头过低 10%/16%、侧倾 6°/12°），并修复 measure.js tilt 公式（旧公式低估侧倾达 3 倍）
 
 ## Not yet specified
 

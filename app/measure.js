@@ -16,10 +16,12 @@
   /* normLm: 33 个 {x,y,z,visibility}；worldLm: 33 个 {x,y,z,visibility}（可空） */
   function measurePose(normLm, worldLm) {
     // —— 侧倾（图像坐标即够：耳线/肩线相对水平的倾角，取较大）——
+    // 用 |dy|、|dx| 求锐角：正面朝向时有符号 atan2 会给出 ~180° 恒定偏移（票 08 素材实测），
+    // 且孩子转身（dx 变号）时会产生 ~176° 虚假偏离跳变；取绝对值后 0°=正、转身仍稳定。
     const earL = normLm[7], earR = normLm[8], shL = normLm[11], shR = normLm[12];
     const tilt = Math.max(
-      Math.abs(Math.atan2(earR.y - earL.y, earR.x - earL.x)),
-      Math.abs(Math.atan2(shR.y - shL.y, shR.x - shL.x))
+      Math.atan2(Math.abs(earR.y - earL.y), Math.abs(earR.x - earL.x)),
+      Math.atan2(Math.abs(shR.y - shL.y), Math.abs(shR.x - shL.x))
     );
     const tiltDeg = deg(tilt);
 

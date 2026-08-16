@@ -13,8 +13,8 @@
   const KEYS = ['slouch', 'headDrop', 'tilt'];
   const META = {
     slouch:   { label: '驼背',   unit: '°', t1: 8,   t2: 12,  hys: 2,  scale: 1,   decimals: 1 },
-    headDrop: { label: '头过低', unit: '%', t1: 12,  t2: 20,  hys: 3,  scale: 100, decimals: 0 },
-    tilt:     { label: '侧倾',   unit: '°', t1: 8,   t2: 12,  hys: 2,  scale: 1,   decimals: 1 },
+    headDrop: { label: '头过低', unit: '%', t1: 10,  t2: 16,  hys: 3,  scale: 100, decimals: 0 },
+    tilt:     { label: '侧倾',   unit: '°', t1: 6,   t2: 12,  hys: 2,  scale: 1,   decimals: 1 },
   };
   const COLORS = { slouch: '#4ade80', headDrop: '#60a5fa', tilt: '#fbbf24' };
   const GRACE_DEFAULT = 3.5;
