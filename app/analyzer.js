@@ -12,12 +12,12 @@
 
   const KEYS = ['slouch', 'headDrop', 'tilt'];
   const META = {
-    slouch:   { label: '驼背',   unit: '°', t1: 8,   t2: 12,  hys: 2,  scale: 1,   decimals: 1 },
-    headDrop: { label: '头过低', unit: '%', t1: 10,  t2: 16,  hys: 3,  scale: 100, decimals: 0 },
-    tilt:     { label: '侧倾',   unit: '°', t1: 6,   t2: 12,  hys: 2,  scale: 1,   decimals: 1 },
+    slouch:   { label: '驼背',   unit: '°', t1: 12,  t2: 18,  hys: 3,  scale: 1,   decimals: 1 },
+    headDrop: { label: '头过低', unit: '%', t1: 20,  t2: 28,  hys: 4,  scale: 100, decimals: 0 },
+    tilt:     { label: '侧倾',   unit: '°', t1: 12,  t2: 18,  hys: 3,  scale: 1,   decimals: 1 },
   };
   const COLORS = { slouch: '#4ade80', headDrop: '#60a5fa', tilt: '#fbbf24' };
-  const GRACE_DEFAULT = 7;
+  const GRACE_DEFAULT = 10;
 
   let poseLandmarker = null, collecting = false, lastVideoTime = -1;
   let frames = [];          // 每帧原始度量 {t, slouch, headDrop, tilt}
@@ -178,7 +178,7 @@
     if (!baseline) { sim = null; return; }
     const cfg = {
       postures: {},
-      graceSeconds: graceSec(), cooldownSeconds: 30, praiseMinInterval: 20, praiseHoldSeconds: 6, recoveryHoldSeconds: 6,
+      graceSeconds: graceSec(), cooldownSeconds: 45, praiseMinInterval: 30, praiseHoldSeconds: 6, recoveryHoldSeconds: 6,
     };
     for (const k of KEYS) {
       const div = k === 'headDrop' ? 100 : 1;   // 显示单位 → 引擎原始单位
