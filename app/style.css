@@ -109,7 +109,7 @@ body {
 
 footer { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:12px; padding:0 4px; }
 .minibtn {
-  background:#1f2937; color:#fff; border:none; border-radius:10px;
+  background:#f1f5f9; color:var(--ink); border:1px solid var(--line); border-radius:10px;
   padding:10px 12px; font-size:13px; cursor:pointer; flex:1;
 }
 .muted { color:var(--muted); }
@@ -192,7 +192,6 @@ body:has(.overlay.open) { overflow:hidden; }
 #video { display:none; }
 
 /* 参数设置面板（家长入口，与孩子主界面隔离） */
-.minibtn.light { background:#f1f5f9; color:var(--ink); border:1px solid var(--line); }
 .settings-panel {
   background:#fff; color:var(--ink); border-radius:16px;
   width:min(92vw, 500px); max-height:86vh;
