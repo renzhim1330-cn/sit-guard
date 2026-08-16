@@ -37,22 +37,20 @@ header {
   font-size:13px; text-align:center;
 }
 
-.bgrid { display:flex; flex-direction:column; gap:12px; }
-@media (min-width: 760px) {
-  .bgrid { display:grid; grid-template-columns:1fr 1fr; }
-  .bgrid .card:nth-child(1), .bgrid .card:nth-child(2) { grid-column:auto; }
-}
-
 .card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px 16px; }
 .card h3 { margin:0 0 8px; font-size:13px; color:var(--muted); font-weight:600; }
 
-/* 我的坐姿 */
-.statuscard { display:flex; align-items:center; gap:14px; }
-.stcol { min-width:0; }
-.st-text { font-weight:700; font-size:17px; }
-.st-sub { font-size:13px; color:var(--muted); margin:2px 0 8px; }
+/* 合并主卡：坐姿状态（上）+ 学习时段（下） */
+.maincard {
+  background:#fff; border:1px solid var(--line); border-radius:14px;
+  padding:18px 16px 14px; margin-bottom:12px;
+}
+.statuscard { display:flex; flex-direction:column; align-items:center; gap:4px; }
+.st-text { font-weight:700; font-size:18px; }
+.st-sub { font-size:13px; color:var(--muted); margin-bottom:6px; }
 .calbtn { background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; border-radius:10px; padding:8px 14px; font-size:13px; cursor:pointer; }
 .calbtn:disabled { opacity:.5; cursor:default; }
+.sessioncard { border-top:1px dashed var(--line); margin-top:12px; padding-top:12px; text-align:center; }
 .badges { margin-top:10px; display:flex; flex-direction:column; gap:6px; }
 .badge-row { display:flex; justify-content:space-between; align-items:center; font-size:13px; padding:5px 10px; background:#f8fafc; border:1px solid var(--line); border-radius:8px; }
 .badge { display:inline-block; padding:1px 10px; border-radius:999px; font-size:12px; font-weight:600; color:#fff; }
@@ -116,10 +114,10 @@ header {
 .history .hline { display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px dashed var(--line); }
 .history .empty { padding:4px 0; }
 
-footer { display:flex; justify-content:space-between; align-items:center; margin-top:12px; padding:0 4px; }
+footer { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:12px; padding:0 4px; }
 .minibtn {
   background:#1f2937; color:#fff; border:none; border-radius:10px;
-  padding:10px 16px; font-size:13px; cursor:pointer;
+  padding:10px 12px; font-size:13px; cursor:pointer; flex:1;
 }
 .muted { color:var(--muted); }
 .small { font-size:12px; }

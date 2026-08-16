@@ -31,26 +31,21 @@
     <button class="ghost small" id="btnRetry">重试摄像头</button>
   </div>
 
-  <div class="bgrid">
+  <!-- 合并主卡：坐姿状态 + 学习时段（主页单卡布局） -->
+  <div class="maincard">
 
-    <div class="card">
-      <h3>我的坐姿</h3>
-      <div class="statuscard">
-        <div class="mascot m-idle" id="mascot">
-          <div class="eye l"></div><div class="eye r"></div>
-          <div class="mouth"></div>
-          <div class="cheek l"></div><div class="cheek r"></div>
-        </div>
-        <div class="stcol">
-          <div class="st-text" id="stText">准备好了吗？</div>
-          <div class="st-sub" id="stSub">坐好，点「开始学习」</div>
-          <button class="calbtn" id="btnCalibrate" disabled>校准 / 重新校准</button>
-        </div>
+    <div class="statuscard">
+      <div class="mascot m-idle" id="mascot">
+        <div class="eye l"></div><div class="eye r"></div>
+        <div class="mouth"></div>
+        <div class="cheek l"></div><div class="cheek r"></div>
       </div>
+      <div class="st-text" id="stText">准备好了吗？</div>
+      <div class="st-sub" id="stSub">坐好，点「开始学习」</div>
+      <button class="calbtn" id="btnCalibrate" disabled>校准 / 重新校准</button>
     </div>
 
-    <div class="card">
-      <h3>学习时段</h3>
+    <div class="sessioncard">
       <div class="digits" id="timer">40:00</div>
       <div class="timer-sub" id="timerSub">默认 40 分钟 · 已提醒 0 次</div>
       <div class="btnrow">
@@ -60,21 +55,17 @@
       <button class="focusbtn" id="btnFocus" disabled>🌙 进入专注</button>
     </div>
 
-    <div class="card">
-      <h3>提醒语音</h3>
-      <button class="calbtn" id="btnVoice" style="width:100%;">🔊 设置提醒语音（试听 / 录音）</button>
-    </div>
+  </div>
 
-    <div class="card">
-      <h3>今日小结</h3>
-      <div class="stats" id="todayStats"></div>
-      <div class="history" id="history"></div>
-    </div>
-
+  <div class="card">
+    <h3>今日小结</h3>
+    <div class="stats" id="todayStats"></div>
+    <div class="history" id="history"></div>
   </div>
 
   <footer>
-    <button class="minibtn" id="btnDemo">🎬 骨架演示模式</button>
+    <button class="minibtn" id="btnVoice">🔊 提醒语音</button>
+    <button class="minibtn" id="btnDemo">🎬 骨架演示</button>
     <button class="minibtn light" id="btnSettings">⚙️ 参数设置</button>
   </footer>
 </div>
