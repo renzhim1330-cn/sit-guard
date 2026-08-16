@@ -12,7 +12,7 @@
       headDrop: { label:'头过低', t1:0.10, t2:0.16, hys:0.03, fmt:(d)=>(d*100).toFixed(0)+'%' },
       tilt:     { label:'侧倾',   t1:6,    t2:12,   hys:2,    fmt:(d)=>d.toFixed(1)+'°' },
     },
-    graceSeconds: 3.5, cooldownSeconds: 30, praiseMinInterval: 20, praiseHoldSeconds: 6, recoveryHoldSeconds: 6,
+    graceSeconds: 7, cooldownSeconds: 30, praiseMinInterval: 20, praiseHoldSeconds: 6, recoveryHoldSeconds: 6,
   };
   const engine = SitGuardEngine.createEngine(CFG);
   const video = $('video');
@@ -639,7 +639,7 @@
     add('tilt.t1', '判定阈值', '侧倾 · 疑似阈值', '°', 2, 16, 0.5, () => CFG.postures.tilt.t1, (v) => { CFG.postures.tilt.t1 = v; }, '歪头 / 歪身达到该角度开始「疑似」。', ang);
     add('tilt.t2', '判定阈值', '侧倾 · 超标阈值', '°', 6, 25, 0.5, () => CFG.postures.tilt.t2, (v) => { CFG.postures.tilt.t2 = v; }, '达到该角度进入「超标」。', ang);
     add('tilt.hys', '判定阈值', '侧倾 · 迟滞', '°', 0.5, 4, 0.5, () => CFG.postures.tilt.hys, (v) => { CFG.postures.tilt.hys = v; }, '防闪烁：回落这么多才退出当前状态。', ang);
-    add('grace', '时间参数', '宽限时间', '秒', 1, 10, 0.5, () => CFG.graceSeconds, (v) => { CFG.graceSeconds = v; }, '连续超标多久才语音提醒。越大越「忍住」。', sec);
+    add('grace', '时间参数', '宽限时间', '秒', 1, 15, 0.5, () => CFG.graceSeconds, (v) => { CFG.graceSeconds = v; }, '连续超标多久才语音提醒。越大越「忍住」。', sec);
     add('cooldown', '时间参数', '提醒冷却', '秒', 10, 120, 5, () => CFG.cooldownSeconds, (v) => { CFG.cooldownSeconds = v; }, '两次提醒之间的最小间隔。', (v) => v + ' 秒');
     add('praiseMin', '时间参数', '表扬最小间隔', '秒', 5, 60, 5, () => CFG.praiseMinInterval, (v) => { CFG.praiseMinInterval = v; }, '两次坐正表扬之间至少隔多久。', (v) => v + ' 秒');
     return D;
@@ -647,9 +647,9 @@
 
   /* 三档灵敏度预设（显示单位；同类连续上限已随「不改正就一直提醒」规则移除） */
   const PRESETS = {
-    loose: { name: '宽松', exp: '提醒更少、更温柔', values: { 'slouch.t1': 12, 'slouch.t2': 18, 'slouch.hys': 3, 'headDrop.t1': 20, 'headDrop.t2': 28, 'headDrop.hys': 4, 'tilt.t1': 12, 'tilt.t2': 18, 'tilt.hys': 3, grace: 5, cooldown: 45, praiseMin: 30 } },
-    standard: { name: '标准', exp: '素材校准值（票 05/08）', values: { 'slouch.t1': 8, 'slouch.t2': 12, 'slouch.hys': 2, 'headDrop.t1': 10, 'headDrop.t2': 16, 'headDrop.hys': 3, 'tilt.t1': 6, 'tilt.t2': 12, 'tilt.hys': 2, grace: 3.5, cooldown: 30, praiseMin: 20 } },
-    strict: { name: '严格', exp: '更敏感、更及时', values: { 'slouch.t1': 6, 'slouch.t2': 9, 'slouch.hys': 1.5, 'headDrop.t1': 8, 'headDrop.t2': 14, 'headDrop.hys': 2, 'tilt.t1': 6, 'tilt.t2': 9, 'tilt.hys': 1.5, grace: 2.5, cooldown: 20, praiseMin: 10 } },
+    loose: { name: '宽松', exp: '提醒更少、更温柔', values: { 'slouch.t1': 12, 'slouch.t2': 18, 'slouch.hys': 3, 'headDrop.t1': 20, 'headDrop.t2': 28, 'headDrop.hys': 4, 'tilt.t1': 12, 'tilt.t2': 18, 'tilt.hys': 3, grace: 10, cooldown: 45, praiseMin: 30 } },
+    standard: { name: '标准', exp: '素材校准值（票 05/08）', values: { 'slouch.t1': 8, 'slouch.t2': 12, 'slouch.hys': 2, 'headDrop.t1': 10, 'headDrop.t2': 16, 'headDrop.hys': 3, 'tilt.t1': 6, 'tilt.t2': 12, 'tilt.hys': 2, grace: 7, cooldown: 30, praiseMin: 20 } },
+    strict: { name: '严格', exp: '更敏感、更及时', values: { 'slouch.t1': 6, 'slouch.t2': 9, 'slouch.hys': 1.5, 'headDrop.t1': 8, 'headDrop.t2': 14, 'headDrop.hys': 2, 'tilt.t1': 6, 'tilt.t2': 9, 'tilt.hys': 1.5, grace: 5, cooldown: 20, praiseMin: 10 } },
   };
 
   function writeParams(values) {

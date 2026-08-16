@@ -17,7 +17,7 @@
     tilt:     { label: '侧倾',   unit: '°', t1: 6,   t2: 12,  hys: 2,  scale: 1,   decimals: 1 },
   };
   const COLORS = { slouch: '#4ade80', headDrop: '#60a5fa', tilt: '#fbbf24' };
-  const GRACE_DEFAULT = 3.5;
+  const GRACE_DEFAULT = 7;
 
   let poseLandmarker = null, collecting = false, lastVideoTime = -1;
   let frames = [];          // 每帧原始度量 {t, slouch, headDrop, tilt}
