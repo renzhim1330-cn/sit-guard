@@ -249,7 +249,11 @@ body:has(.overlay.open) { overflow:hidden; }
   background:rgba(239,68,68,.16); border:1px solid rgba(239,68,68,.5); color:#fca5a5;
   border-radius:10px; padding:8px 14px; font-size:12px; line-height:1.6; max-width:320px;
 }
-.f-black { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+.f-black {
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  opacity:0; transition:opacity .6s ease;
+}
+.f-black.show { opacity:1; }
 .f-ghost { opacity:.06; pointer-events:none; }
 .f-exit {
   position:absolute; left:14px; bottom:14px;

@@ -42,7 +42,6 @@
       </div>
       <div class="st-text" id="stText">准备好了吗？</div>
       <div class="st-sub" id="stSub">坐好，点「开始学习」</div>
-      <button class="calbtn" id="btnCalibrate" disabled>校准 / 重新校准</button>
     </div>
 
     <div class="sessioncard">
@@ -101,6 +100,7 @@
     <div class="sections" id="settingsForm"></div>
     <div class="settings-foot">
       <button class="bigbtn" id="btnResetParams">恢复默认（标准）</button>
+      <button class="closebtn" id="btnRecalibrate">重新校准</button>
       <button class="closebtn" id="btnSettingsClose">关闭</button>
     </div>
   </div>
@@ -130,11 +130,11 @@
   <button class="closebtn" id="btnSummaryClose">太棒了，收下</button>
 </div>
 
-<!-- 专注模式覆盖层（黑屏遮罩 + 唤醒锁；票：专注模式） -->
+<!-- 专注模式覆盖层（黑屏遮罩 + 唤醒锁；票：专注模式。倒计时兼作自动校准引导） -->
 <div class="overlay focus" id="ovFocus">
-  <!-- 倒计时（圆环 5 秒） -->
+  <!-- 倒计时（圆环 5 秒：请坐正 → 自动校准 → 进黑屏） -->
   <div class="f-count" id="focusCount">
-    <div class="f-txt">闭上眼睛，专注开始</div>
+    <div class="f-txt" id="fTxt">请坐正，看着屏幕</div>
     <div class="f-ringwrap">
       <svg width="160" height="160" viewBox="0 0 160 160">
         <circle cx="80" cy="80" r="70" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="10"/>
@@ -142,7 +142,7 @@
       </svg>
       <div class="f-num" id="fNum">5</div>
     </div>
-    <div class="f-sub">指示灯亮 = 守护中 · 语音提醒会告诉你坐姿</div>
+    <div class="f-sub" id="fSub">倒计时结束会自动记住你的标准坐姿</div>
     <div class="f-warn hidden" id="focusWarn">⚠️ 本设备无法保持屏幕常亮，学习过程中可能自动锁屏。建议在系统设置里把「自动锁屏」设为永不。</div>
     <button class="closebtn" id="btnFocusCancel">取消</button>
   </div>

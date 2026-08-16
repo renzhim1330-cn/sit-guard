@@ -23,13 +23,15 @@
   const engine = SitGuardEngine.createEngine(CFG);
   const video = $('video');
   let poseLandmarker = null, lastTs = performance.now(), lastVideoTime = -1;
-  let demoActive = false, calibratePendingStart = false;
+  let demoActive = false;
   let recorder = null, recordingKey = null, recordingIdx = -1;
-  /* 专注模式（票：专注模式——黑屏遮罩 + 唤醒锁防自动锁屏） */
+  /* 专注模式（票：专注模式——黑屏遮罩 + 唤醒锁防自动锁屏；倒计时兼作自动校准引导） */
   const FOCUS_SECONDS = 5, FOCUS_RING = 439.8;   // 2π×70（圆环周长）
+  const CALIB_TILT_MAX = 15;                      // 质量门：校准基准的侧倾上限（歪着坐不当基准）
   let focusState = 'none';                        // none | countdown | black
   let focusTimer = null, focusCount = FOCUS_SECONDS;
   let wakeLockSentinel = null;
+  let calibCollect = false, calibAutoFocus = false, calibBuffer = [];  // 自动校准：末段快照
 
   const app = {
     ready: false, calibrated: false,
@@ -88,10 +90,9 @@
     if (!modelOk || !camOk) return;
     app.ready = true;
     $('btnStart').disabled = false;
-    $('btnCalibrate').disabled = false;
     $('btnDemoCalibrate').disabled = false;
     requestAnimationFrame(loop);
-    toast('准备好了，先校准再开始～');
+    toast('准备好了——坐好，点「开始学习」，会自动记住你的标准坐姿');
   }
 
   /* ---------------- 检测循环 ---------------- */
@@ -117,6 +118,10 @@
   }
 
   function onPose(m, dt) {
+    if (calibCollect) {                  // 自动校准：收集最近 ~2s 快照（末段均值用）
+      calibBuffer.push({ slouch: m.slouch, headDrop: m.headDrop, tilt: m.tilt });
+      if (calibBuffer.length > 20) calibBuffer.shift();
+    }
     if (app.lost) {                       // 票 07：恢复检测
       app.lost = false; app.lostMs = 0; app.reinforce = false;
       engine.resetGrace();                // 宽限清零，防“坐回来立刻响”
@@ -176,18 +181,10 @@
   }
 
   /* ---------------- 会话动作 ---------------- */
+  /* 开始学习 = 校准倒计时（自动捕获标准坐姿）→ 成功自动进入专注黑屏 */
   function startSession() {
-    if (!app.calibrated) { openCalibrate(true); return; }
-    app.running = true; app.paused = false;
-    app.lost = false; app.lostMs = 0; app.reinforce = false;
-    app.leftSec = app.totalSec; app.goodSec = 0; app.remindCount = 0; app.praiseCount = 0;
-    app.lastRemindAt = 0; app.mood = 'ok';
-    engine.resetGrace();
-    SitGuardVoice.play('start');
-    try { sessionStorage.setItem('sgFocusActive', '1'); } catch (e) {}
     requestWakeLock();                 // 用户手势内发起（专注模式核心依赖）
-    enterFocusCountdown();             // 开始学习 → 自动进入专注倒计时
-    render();
+    beginCalibrateCountdown(true);
   }
 
   function endSession() {
@@ -226,20 +223,27 @@
     if (wakeLockSentinel) { try { wakeLockSentinel.release(); } catch (e) {} wakeLockSentinel = null; }
   }
 
-  function enterFocusCountdown() {
+  /* 校准倒计时：5 秒「请坐正」→ 末段均值捕获基准（质量门）→ 进专注 / 仅校准 */
+  function beginCalibrateCountdown(autoFocus) {
     if (focusState !== 'none') return;
+    calibAutoFocus = autoFocus;
+    calibBuffer = [];
+    calibCollect = true;
     focusState = 'countdown';
     focusCount = FOCUS_SECONDS;
+    $('fTxt').textContent = '请坐正，看着屏幕';
+    $('fSub').textContent = '倒计时结束会自动记住你的标准坐姿';
     $('focusWarn').classList.add('hidden');
     $('fNum').textContent = String(focusCount);
     $('fRing').style.strokeDashoffset = '0';
+    $('focusBlack').classList.remove('show');
     $('focusBlack').classList.add('hidden');
     $('focusCount').classList.remove('hidden');
     $('ovFocus').classList.add('open');
     if (!('wakeLock' in navigator)) $('focusWarn').classList.remove('hidden');
     focusTimer = setInterval(() => {
       focusCount -= 1;
-      if (focusCount <= 0) { clearInterval(focusTimer); focusTimer = null; enterFocusBlack(); return; }
+      if (focusCount <= 0) { clearInterval(focusTimer); focusTimer = null; onCalibrateCountdownEnd(); return; }
       $('fNum').textContent = String(focusCount);
       $('fRing').style.strokeDashoffset = String(FOCUS_RING * (1 - focusCount / FOCUS_SECONDS));
     }, 1000);
@@ -247,17 +251,57 @@
   }
   function cancelFocusCountdown() {
     if (focusTimer) { clearInterval(focusTimer); focusTimer = null; }
+    calibCollect = false;
+    releaseWakeLock();
     focusState = 'none';
     $('ovFocus').classList.remove('open');
+    updateFocusUI();
+  }
+  /* 倒计时结束：末段均值 + 质量门（检测到人、基准侧倾 < 15°）→ 校准 */
+  function onCalibrateCountdownEnd() {
+    calibCollect = false;
+    const ok = calibBuffer.length >= 3 && Math.abs(calibBuffer.reduce((a, x) => a + x.tilt, 0) / calibBuffer.length) < CALIB_TILT_MAX;
+    if (!ok) {
+      releaseWakeLock();
+      focusState = 'none';
+      $('ovFocus').classList.remove('open');
+      updateFocusUI();
+      toast('没坐正，请坐好后重新开始');
+      return;
+    }
+    engine.calibrate({
+      slouch: calibBuffer.reduce((a, x) => a + x.slouch, 0) / calibBuffer.length,
+      headDrop: calibBuffer.reduce((a, x) => a + x.headDrop, 0) / calibBuffer.length,
+      tilt: calibBuffer.reduce((a, x) => a + x.tilt, 0) / calibBuffer.length,
+    });
+    app.calibrated = true;
+    if (calibAutoFocus) {
+      // 正式开跑：学习时段 + 唤醒锁（已持有）+ 开始语音 → 直接黑屏
+      app.running = true; app.paused = false;
+      app.lost = false; app.lostMs = 0; app.reinforce = false;
+      app.leftSec = app.totalSec; app.goodSec = 0; app.remindCount = 0; app.praiseCount = 0;
+      app.lastRemindAt = 0; app.mood = 'ok';
+      engine.resetGrace();
+      SitGuardVoice.play('start');
+      try { sessionStorage.setItem('sgFocusActive', '1'); } catch (e) {}
+      enterFocusBlack();
+    } else {
+      toast('✅ 校准完成（已记住你的标准坐姿）');
+      focusState = 'none';
+      $('ovFocus').classList.remove('open');
+    }
+    render();
     updateFocusUI();
   }
   function enterFocusBlack() {
     focusState = 'black';
     $('focusCount').classList.add('hidden');
     $('focusBlack').classList.remove('hidden');
+    requestAnimationFrame(() => requestAnimationFrame(() => $('focusBlack').classList.add('show')));
   }
   function exitFocusBlack() {
     focusState = 'none';
+    $('focusBlack').classList.remove('show');
     $('ovFocus').classList.remove('open');
     updateFocusUI();                       // 回正常界面，可再点「进入专注」
   }
@@ -303,8 +347,8 @@
   });
 
   /* ---------------- 校准 ---------------- */
-  function openCalibrate(pendingStart) {
-    calibratePendingStart = pendingStart;
+  /* 主页校准已自动化（开始学习 = 校准倒计时）；此手动校准层仅供骨架演示模式使用 */
+  function openCalibrate() {
     $('ovCalibrate').classList.add('open');
   }
   function closeCalibrate() {
@@ -315,8 +359,7 @@
     engine.calibrate(app.liveMeasures);
     app.calibrated = true;
     closeCalibrate();
-    if (calibratePendingStart) { calibratePendingStart = false; startSession(); }
-    else toast('✅ 校准完成（已记住你的标准坐姿）');
+    toast('✅ 校准完成（已记住你的标准坐姿）');
     render();
   }
 
@@ -566,23 +609,25 @@
   /* ---------------- 事件绑定 ---------------- */
   $('btnStart').addEventListener('click', () => { app.running ? endSession() : startSession(); });
   $('btnPause').addEventListener('click', togglePause);
-  $('btnFocus').addEventListener('click', enterFocusCountdown);
+  $('btnFocus').addEventListener('click', () => {
+    // 运行中且不在黑屏：已校准直接进黑屏（倒计时只在「开始学习/重新校准」时做坐姿引导）
+    if (app.running && focusState === 'none' && app.calibrated) enterFocusBlack();
+  });
   $('btnFocusCancel').addEventListener('click', cancelFocusCountdown);
   $('btnFocusExit').addEventListener('click', exitFocusBlack);
-  $('btnCalibrate').addEventListener('click', () => openCalibrate(false));
   $('btnCalibrateDone').addEventListener('click', doCalibrate);
   $('btnCalibrateCancel').addEventListener('click', closeCalibrate);
   $('btnDemo').addEventListener('click', () => { demoActive = true; $('ovDemo').classList.add('open'); });
   // 演示模式里的校准：复用同一个校准覆盖层，但要叠在演示层之上（on-top）
   $('btnDemoCalibrate').addEventListener('click', () => {
     $('ovCalibrate').classList.add('on-top');
-    openCalibrate(false);
+    openCalibrate();
   });
   $('btnDemoClose').addEventListener('click', () => { demoActive = false; $('ovDemo').classList.remove('open'); });
   $('btnSummaryClose').addEventListener('click', () => { $('ovSummary').classList.remove('open'); });
   $('btnRetry').addEventListener('click', async () => {
     const ok = await initCamera();
-    if (ok && poseLandmarker) { app.ready = true; $('btnStart').disabled = false; $('btnCalibrate').disabled = false; $('btnDemoCalibrate').disabled = false; requestAnimationFrame(loop); }
+    if (ok && poseLandmarker) { app.ready = true; $('btnStart').disabled = false; $('btnDemoCalibrate').disabled = false; requestAnimationFrame(loop); }
   });
   $('volRange').addEventListener('input', (e) => { SitGuardVoice.setVolume(e.target.value / 100); });
   $('chkMute').addEventListener('change', (e) => { SitGuardVoice.setMuted(e.target.checked); });
@@ -672,6 +717,12 @@
 
   $('btnSettings').addEventListener('click', () => { renderSettings(); $('ovSettings').classList.add('open'); });
   $('btnSettingsClose').addEventListener('click', () => $('ovSettings').classList.remove('open'));
+  /* 重新校准（家长面板入口）：关设置 → 校准倒计时（不进专注） */
+  $('btnRecalibrate').addEventListener('click', () => {
+    $('ovSettings').classList.remove('open');
+    requestWakeLock();
+    beginCalibrateCountdown(false);
+  });
   $('btnResetParams').addEventListener('click', () => {
     writeParams(PRESETS.standard.values);
     saveParams();
