@@ -291,6 +291,7 @@
   }
   function enterFocusBlack() {
     focusState = 'black';
+    $('ovFocus').classList.add('open');        // 可能从「结束专注」退出后再次进入：覆盖层需重新打开
     $('focusCount').classList.add('hidden');
     $('focusBlack').classList.remove('hidden');
     requestAnimationFrame(() => requestAnimationFrame(() => $('focusBlack').classList.add('show')));
