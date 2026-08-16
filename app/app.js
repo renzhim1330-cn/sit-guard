@@ -237,7 +237,6 @@
     $('focusCount').classList.remove('hidden');
     $('ovFocus').classList.add('open');
     if (!('wakeLock' in navigator)) $('focusWarn').classList.remove('hidden');
-    SitGuardVoice.play('focus');
     focusTimer = setInterval(() => {
       focusCount -= 1;
       if (focusCount <= 0) { clearInterval(focusTimer); focusTimer = null; enterFocusBlack(); return; }
@@ -448,7 +447,6 @@
     { key: 'praise', name: '坐正表扬' },
     { key: 'start', name: '开始学习' },
     { key: 'end', name: '结束学习' },
-    { key: 'focus', name: '进入专注' },
   ];
   function renderVoiceList() {
     const warn = SitGuardVoice.hasZhVoice ? '' :

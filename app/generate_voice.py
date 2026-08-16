@@ -32,7 +32,6 @@ SCRIPTS = {
     "praise":    ["坐正啦，真棒！", "背挺直了，真棒！", "好样的，继续保持～"],
     "start":     ["开始学习啦，加油～"],
     "end":       ["学习结束，休息一下吧～"],
-    "focus":     ["闭上眼睛，专注开始～"],
 }
 
 DEFAULT_OUTDIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "audio")
