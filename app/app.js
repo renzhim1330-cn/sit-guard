@@ -10,7 +10,7 @@
     postures: {
       slouch:   { label:'驼背',   t1:12,   t2:18,   hys:3,    fmt:(d)=>d.toFixed(1)+'°' },
       headDrop: { label:'头过低', t1:0.20, t2:0.28, hys:0.04, fmt:(d)=>(d*100).toFixed(0)+'%' },
-      tilt:     { label:'侧倾',   t1:12,   t2:18,   hys:3,    fmt:(d)=>d.toFixed(1)+'°' },
+      tilt:     { label:'侧倾',   t1:8,    t2:14,   hys:2,    fmt:(d)=>d.toFixed(1)+'°' },
     },
     graceSeconds: 10, cooldownSeconds: 45, praiseMinInterval: 30, praiseHoldSeconds: 6, recoveryHoldSeconds: 6,
   };
@@ -648,8 +648,8 @@
   /* 三档灵敏度预设（显示单位；同类连续上限已随「不改正就一直提醒」规则移除）。
    * 2025 调整：原宽松→标准（默认）、原标准→严格、原严格删除，新增更宽松的宽松。 */
   const PRESETS = {
-    loose: { name: '宽松', exp: '最宽松：明显坐歪才提醒', values: { 'slouch.t1': 14, 'slouch.t2': 20, 'slouch.hys': 3, 'headDrop.t1': 24, 'headDrop.t2': 32, 'headDrop.hys': 4, 'tilt.t1': 14, 'tilt.t2': 20, 'tilt.hys': 3, grace: 15, cooldown: 60, praiseMin: 40 } },
-    standard: { name: '标准', exp: '默认档（原宽松）：提醒更少、更温柔', values: { 'slouch.t1': 12, 'slouch.t2': 18, 'slouch.hys': 3, 'headDrop.t1': 20, 'headDrop.t2': 28, 'headDrop.hys': 4, 'tilt.t1': 12, 'tilt.t2': 18, 'tilt.hys': 3, grace: 10, cooldown: 45, praiseMin: 30 } },
+    loose: { name: '宽松', exp: '最宽松：明显坐歪才提醒', values: { 'slouch.t1': 14, 'slouch.t2': 20, 'slouch.hys': 3, 'headDrop.t1': 24, 'headDrop.t2': 32, 'headDrop.hys': 4, 'tilt.t1': 10, 'tilt.t2': 16, 'tilt.hys': 2.5, grace: 15, cooldown: 60, praiseMin: 40 } },
+    standard: { name: '标准', exp: '默认档（原宽松）：提醒更少、更温柔', values: { 'slouch.t1': 12, 'slouch.t2': 18, 'slouch.hys': 3, 'headDrop.t1': 20, 'headDrop.t2': 28, 'headDrop.hys': 4, 'tilt.t1': 8, 'tilt.t2': 14, 'tilt.hys': 2, grace: 10, cooldown: 45, praiseMin: 30 } },
     strict: { name: '严格', exp: '原标准档（素材校准值 票05/08）：更敏感', values: { 'slouch.t1': 8, 'slouch.t2': 12, 'slouch.hys': 2, 'headDrop.t1': 10, 'headDrop.t2': 16, 'headDrop.hys': 3, 'tilt.t1': 6, 'tilt.t2': 12, 'tilt.hys': 2, grace: 7, cooldown: 30, praiseMin: 20 } },
   };
 
