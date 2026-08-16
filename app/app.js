@@ -37,6 +37,7 @@
     goodSec: 0, remindCount: 0, praiseCount: 0,
     lastRemindAt: 0, mood: 'idle',
     liveMeasures: null, lastStates: null, lastResult: null,
+    cooldownLeft: 0, cooldownTotal: 45,           // 提醒冷却（演示模式进度条）
   };
 
   /* ---------------- 初始化 ---------------- */
@@ -141,6 +142,8 @@
     if (!app.calibrated) return;
     const res = engine.tick(m, dt);
     app.lastStates = res.states;
+    app.cooldownLeft = res.globals.cooldownLeft;       // 提醒冷却（演示模式进度条用）
+    app.cooldownTotal = res.globals.cooldownTotal;
     if (worstBand(res.states) === 'ok') app.goodSec += dt;
     let justReminded = false;
     for (const ev of res.events) {
@@ -277,6 +280,7 @@
       app.lost = false; app.lostMs = 0; app.reinforce = false;
       app.leftSec = app.totalSec; app.goodSec = 0; app.remindCount = 0; app.praiseCount = 0;
       app.lastRemindAt = 0; app.mood = 'ok';
+      app.cooldownLeft = 0; app.cooldownTotal = CFG.cooldownSeconds;
       engine.resetGrace();
       SitGuardVoice.play('start');
       try { sessionStorage.setItem('sgFocusActive', '1'); } catch (e) {}
@@ -439,7 +443,14 @@
         '<div class="badge-row"><span>尚未校准</span><span class="badge none">点「校准」开始</span></div>';
       return;
     }
-    el.innerHTML = Object.keys(CFG.postures).map((k) => {
+    let html = '';
+    if (app.cooldownLeft > 0) {                    // 提醒冷却进度条（缩短中）
+      const pct = Math.min(100, app.cooldownLeft / app.cooldownTotal * 100);
+      html += '<div class="badge-row cd-row"><span>⏳ 提醒冷却</span>' +
+        '<div class="cdbar"><i style="width:' + pct + '%"></i></div>' +
+        '<span class="cdsec">' + Math.ceil(app.cooldownLeft) + 's</span></div>';
+    }
+    el.innerHTML = html + Object.keys(CFG.postures).map((k) => {
       const p = CFG.postures[k];
       const st = app.lastStates && app.lastStates[k];
       let badge, extra = '';

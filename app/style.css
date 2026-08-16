@@ -175,6 +175,11 @@ body:has(.overlay.open) { overflow:hidden; }
 .demo-badges { width:100%; max-width:320px; }
 .overlay .badge-row { background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.18); color:#fff; }
 .overlay .gracebar { background:rgba(255,255,255,.2); }
+/* 提醒冷却进度条（演示模式，触发提醒后出现并缩短） */
+.cd-row { gap:8px; font-size:12px; }
+.cd-row .cdbar { flex:1; height:6px; background:rgba(255,255,255,.15); border-radius:3px; overflow:hidden; }
+.cd-row .cdbar i { display:block; height:100%; background:#fbbf24; border-radius:3px; }
+.cd-row .cdsec { color:rgba(255,255,255,.7); font-variant-numeric:tabular-nums; white-space:nowrap; }
 
 .toast {
   position:fixed; bottom:40px; left:50%; transform:translateX(-50%);

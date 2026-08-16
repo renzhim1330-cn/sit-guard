@@ -3,7 +3,8 @@
  * 关键设计：不做度量平滑（EMA 渐近偏差 bug）；抗误报靠「迟滞带 + 宽限计时」。
  *
  * 提醒（对齐用户目标：不改正就持续提醒）：
- *  - 真实超标（d≥t2）持续满宽限（默认 10s）→ 提醒 → 冷却（默认 45s）→ 仍超标 → 再计宽限 → 再提醒，无限循环；
+ *  - 真实超标（d≥t2）持续满宽限（默认 10s）→ 提醒 → 冷却（默认 45s）；
+ *  - 冷却期间**暂停宽限计时**（不再累计超标时长），冷却结束重新从 0 计满宽限才再提醒，无次数上限；
  *  - 宽限只计「真实超标」（d≥t2）的连续时间：迟滞粘滞区（t2−hys ~ t2，状态仍显红色但已低于超标阈值）暂停不计，
  *    一旦真正出带到疑似/正常（d < t2−hys）即清零重算——边界抖动不再跨时段累积红色时长；
  *  - 真正改正（全部姿态回到「正常」并保持 recoveryHoldSeconds，默认 6s）→ 全姿态宽限清零，重新开始。
@@ -55,7 +56,7 @@
         else if (prev === 'warn') { if (d >= t2) next = 'bad'; else if (d < t1 - hys) next = 'ok'; }
         else if (prev === 'bad' && d < t2 - hys) next = 'warn';
         band[k] = next;
-        if (d >= t2) {                             // 宽限只累计「真实超标」（d≥t2）的连续时间
+        if (d >= t2 && cooldownLeft <= 0) {        // 宽限只累计「真实超标」（d≥t2）的连续时间；提醒冷却期间暂停计时
           grace[k] += dt;                          // 迟滞粘滞区（t2−hys ~ t2）暂停不计
           if (grace[k] >= cfg.graceSeconds) ready.push(k);
         } else if (next !== 'bad') {               // 真正出带到疑似/正常 → 清零重算
@@ -102,7 +103,7 @@
       }
       return {
         states: snapshot,
-        globals: { cooldownLeft, reminderTotal, time, praiseCount },
+        globals: { cooldownLeft, cooldownTotal: cfg.cooldownSeconds, reminderTotal, time, praiseCount },
         events,
       };
     }
