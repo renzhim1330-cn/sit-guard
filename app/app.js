@@ -374,7 +374,6 @@
     const [t, s] = statusText();
     $('stText').textContent = t;
     $('stSub').textContent = s;
-    renderBadges('badges');
     renderTimer();
     $('btnDemoCalibrate').textContent = app.calibrated ? '重新校准' : '校准';
   }
