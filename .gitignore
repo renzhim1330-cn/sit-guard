@@ -3,6 +3,9 @@ test-assets/*
 !test-assets/README.md
 !test-assets/analysis-results.md
 
+# 申报材料（本地保留，不进仓库）
+submission/*
+
 # 系统 / 编辑器
 .DS_Store
 Thumbs.db
