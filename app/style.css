@@ -40,17 +40,36 @@ header {
 .card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px 16px; }
 .card h3 { margin:0 0 8px; font-size:13px; color:var(--muted); font-weight:600; }
 
-/* 合并主卡：坐姿状态（上）+ 学习时段（下） */
+/* 合并主卡：坐姿状态（左，浅色底块）+ 学习时段（右） */
 .maincard {
   background:#fff; border:1px solid var(--line); border-radius:14px;
   padding:18px 16px 14px; margin-bottom:12px;
 }
-.statuscard { display:flex; flex-direction:column; align-items:center; gap:4px; }
-.st-text { font-weight:700; font-size:18px; }
-.st-sub { font-size:13px; color:var(--muted); margin-bottom:6px; }
+.mainrow { display:flex; gap:14px; align-items:center; }
+.statuscard {
+  flex:0 0 42%; display:flex; flex-direction:column; align-items:center; gap:4px;
+  background:#f8fafc; border:1px solid var(--line); border-radius:14px; padding:14px 6px;
+}
+.st-text { font-weight:700; font-size:16px; text-align:center; }
+.st-sub { font-size:12px; color:var(--muted); text-align:center; }
+.sessioncard { flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; }
+.digits { font-size:38px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:1px; }
+.timer-sub { font-size:12px; color:var(--muted); margin-bottom:8px; text-align:center; }
+.btnrow { display:flex; gap:8px; width:100%; }
+.btn-primary {
+  flex:1; background:var(--accent); color:#fff; border:none; border-radius:12px;
+  padding:11px 0; font-size:15px; font-weight:600; cursor:pointer;
+}
+.btn-primary:disabled { opacity:.5; cursor:default; }
+.btn-primary.danger { background:var(--bad); }
+.ghost {
+  background:#f1f5f9; border:1px solid var(--line); color:var(--ink);
+  border-radius:12px; padding:11px 14px; font-size:14px; cursor:pointer;
+}
+.ghost:disabled { opacity:.5; cursor:default; }
+.ghost.small { padding:6px 12px; font-size:12px; }
 .calbtn { background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; border-radius:10px; padding:8px 14px; font-size:13px; cursor:pointer; }
 .calbtn:disabled { opacity:.5; cursor:default; }
-.sessioncard { border-top:1px dashed var(--line); margin-top:12px; padding-top:12px; text-align:center; }
 .badges { margin-top:10px; display:flex; flex-direction:column; gap:6px; }
 .badge-row { display:flex; justify-content:space-between; align-items:center; font-size:13px; padding:5px 10px; background:#f8fafc; border:1px solid var(--line); border-radius:8px; }
 .badge { display:inline-block; padding:1px 10px; border-radius:999px; font-size:12px; font-weight:600; color:#fff; }
@@ -60,23 +79,6 @@ header {
 .badge.none { background:#94a3b8; }
 .gracebar { height:5px; background:var(--line); border-radius:3px; margin-top:5px; overflow:hidden; }
 .gracebar i { display:block; height:100%; background:var(--bad); width:0%; }
-
-/* 学习时段 */
-.digits { font-size:44px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:1px; }
-.timer-sub { font-size:12px; color:var(--muted); margin-bottom:10px; }
-.btnrow { display:flex; gap:10px; }
-.btn-primary {
-  flex:1; background:var(--accent); color:#fff; border:none; border-radius:12px;
-  padding:12px 0; font-size:16px; font-weight:600; cursor:pointer;
-}
-.btn-primary:disabled { opacity:.5; cursor:default; }
-.btn-primary.danger { background:var(--bad); }
-.ghost {
-  background:#f1f5f9; border:1px solid var(--line); color:var(--ink);
-  border-radius:12px; padding:12px 18px; font-size:14px; cursor:pointer;
-}
-.ghost:disabled { opacity:.5; cursor:default; }
-.ghost.small { padding:6px 12px; font-size:12px; }
 
 /* 专注模式入口（独立一行，避免挤占「开始学习/暂停」主按钮行） */
 .focusbtn {
