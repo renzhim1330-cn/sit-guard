@@ -427,21 +427,8 @@
 
   /* ---------------- 渲染 ---------------- */
   function render() {
-    // 头栏
-    const dot = $('statusDot');
-    const dotCls = { ok: 's-ok', warn: 's-warn', bad: 's-bad', remind: 's-bad', lost: 's-lost' }[app.mood] || '';
-    dot.className = 'dot ' + dotCls;
-    $('statusLabel').textContent = stateLabel();
     renderTimer();
     $('btnDemoCalibrate').textContent = app.calibrated ? '重新校准' : '校准';
-  }
-
-  function stateLabel() {
-    if (!app.ready) return '加载中…';
-    if (app.lost) return '看不到你啦';
-    if (!app.running) return '未开始';
-    if (app.paused) return '已暂停';
-    return { ok: '学习中', warn: '要注意咯', bad: '超标·宽限中', remind: '提醒中' }[app.mood] || '学习中';
   }
 
   function renderBadges(containerId) {
