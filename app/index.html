@@ -19,6 +19,10 @@
 <body>
 <div class="app">
 
+  <div class="privacy-note">🔒 检测全程在本机运行，画面不出设备</div>
+
+  <div class="loading-note" id="loadingNote">⏳ 正在加载检测模型…首次访问需联网下载（约几秒），请稍候</div>
+
   <!-- 主卡：品牌头 + 学习时段（倒计时 + 三按钮一行） -->
   <div class="maincard">
     <div class="cardhead">
@@ -33,10 +37,6 @@
       <button class="ghost" id="btnFocus" disabled>🌙 进入专注</button>
     </div>
   </div>
-
-  <div class="privacy-note">🔒 检测全程在本机运行，画面不出设备</div>
-
-  <div class="loading-note" id="loadingNote">⏳ 正在加载检测模型…首次访问需联网下载（约几秒），请稍候</div>
 
   <div class="banner hidden" id="cameraError">
     <span id="cameraErrorMsg"></span>
