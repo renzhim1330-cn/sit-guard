@@ -55,6 +55,7 @@
       <div class="btnrow">
         <button class="btn-primary" id="btnStart" disabled>开始学习</button>
         <button class="ghost" id="btnPause" disabled>暂停</button>
+        <button class="ghost" id="btnFocus" disabled>进入专注</button>
       </div>
     </div>
 
@@ -125,6 +126,33 @@
   <h2>本次学习小结</h2>
   <div class="sumgrid" id="sumText"></div>
   <button class="closebtn" id="btnSummaryClose">太棒了，收下</button>
+</div>
+
+<!-- 专注模式覆盖层（黑屏遮罩 + 唤醒锁；票：专注模式） -->
+<div class="overlay focus" id="ovFocus">
+  <!-- 倒计时（圆环 5 秒） -->
+  <div class="f-count" id="focusCount">
+    <div class="f-txt">闭上眼睛，专注开始</div>
+    <div class="f-ringwrap">
+      <svg width="160" height="160" viewBox="0 0 160 160">
+        <circle cx="80" cy="80" r="70" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="10"/>
+        <circle id="fRing" cx="80" cy="80" r="70" fill="none" stroke="#4ade80" stroke-width="10" stroke-linecap="round" stroke-dasharray="439.8" stroke-dashoffset="0"/>
+      </svg>
+      <div class="f-num" id="fNum">5</div>
+    </div>
+    <div class="f-sub">指示灯亮 = 守护中 · 语音提醒会告诉你坐姿</div>
+    <div class="f-warn hidden" id="focusWarn">⚠️ 本设备无法保持屏幕常亮，学习过程中可能自动锁屏。建议在系统设置里把「自动锁屏」设为永不。</div>
+    <button class="closebtn" id="btnFocusCancel">取消</button>
+  </div>
+  <!-- 黑屏（全黑 + 极暗吉祥物剪影 + 左下角「结束专注」） -->
+  <div class="f-black hidden" id="focusBlack">
+    <div class="mascot m-idle f-ghost" aria-hidden="true">
+      <div class="eye l"></div><div class="eye r"></div>
+      <div class="mouth"></div>
+      <div class="cheek l"></div><div class="cheek r"></div>
+    </div>
+    <button class="f-exit" id="btnFocusExit">结束专注</button>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>

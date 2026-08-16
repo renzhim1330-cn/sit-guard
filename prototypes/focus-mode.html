@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>专注模式交互原型（一次性）</title>
+<!--
+  ⚠️ 一次性原型（票：专注模式交互原型）——非产品代码，体验完即弃。
+  问题：「开始学习 → 提示 → 倒计时 → 纯黑遮罩 → 角落退出 → 仅语音反馈」手感如何？
+  3 个结构不同的变体，?variant=A|B|C 切换（或底部栏 ←/→）：
+    A「数字极简」  B「圆环安抚」  C「渐隐沉浸」
+  语音提醒用浏览器本地 TTS 真实播放（模拟提醒按钮在左下角黑屏内）。
+-->
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "PingFang SC","Microsoft YaHei",system-ui,sans-serif; background:#eef1f5; color:#1f2937; }
+  .proto-banner { background:#fef3c7; color:#92400e; font-size:12px; padding:6px 12px; text-align:center; border-bottom:1px solid #fde68a; }
+  .proto-banner b { color:#b45309; }
+  /* 舞台：模拟 App 主界面 */
+  .stage { max-width:420px; margin:16px auto; padding:0 12px; }
+  .card { background:#fff; border-radius:14px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .mascot { font-size:56px; text-align:center; }
+  .btn-main { display:block; width:100%; padding:14px; border:none; border-radius:12px; background:#2563eb; color:#fff; font-size:16px; font-weight:600; cursor:pointer; margin-top:12px; }
+  .btn-main:disabled { opacity:.5; }
+  .hint { font-size:12px; color:#6b7280; margin-top:8px; text-align:center; }
+  /* 状态机（原型框架，非产品 UI） */
+  .state-bar { position:fixed; bottom:64px; left:50%; transform:translateX(-50%); background:#111827; color:#9ca3af; font-size:11px; padding:4px 12px; border-radius:999px; z-index:60; font-family:ui-monospace,monospace; }
+  /* 变体切换栏（原型框架） */
+  .switcher { position:fixed; bottom:12px; left:50%; transform:translateX(-50%); background:#111827; color:#fff; border-radius:999px; padding:6px 12px; font-size:13px; z-index:70; display:flex; align-items:center; gap:10px; box-shadow:0 4px 12px rgba(0,0,0,.35); }
+  .switcher button { background:#374151; color:#fff; border:none; border-radius:50%; width:26px; height:26px; cursor:pointer; font-size:14px; }
+  .switcher .label { min-width:150px; text-align:center; color:#d1d5db; }
+  /* ===== 覆盖层共用 ===== */
+  .overlay { position:fixed; inset:0; z-index:40; }
+  .hidden { display:none !important; }
+  /* 降级提示（主界面顶部） */
+  .degrade { background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; border-radius:10px; padding:10px 12px; font-size:12px; margin-bottom:12px; }
+  /* ===== 变体 A：数字极简 ===== */
+  .v-a-count { background:#111827; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; }
+  .v-a-count .num { font-size:96px; font-weight:700; color:#fff; font-variant-numeric:tabular-nums; }
+  .v-a-count .txt { color:#9ca3af; font-size:15px; }
+  .v-a-black { background:#000; }
+  .exit-dot { position:absolute; left:14px; bottom:14px; width:34px; height:34px; border-radius:50%; background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.18); color:rgba(255,255,255,.55); font-size:16px; cursor:pointer; z-index:5; }
+  /* ===== 变体 B：圆环安抚 ===== */
+  .v-b-count { background:linear-gradient(160deg,#1e293b,#0f172a); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; }
+  .v-b-count .ringwrap { position:relative; width:160px; height:160px; }
+  .v-b-count svg { transform:rotate(-90deg); }
+  .v-b-count .ringnum { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:44px; font-weight:700; color:#fff; }
+  .v-b-count .txt { color:#94a3b8; font-size:15px; }
+  .v-b-black { background:#000; }
+  .v-b-black .ghost { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:120px; opacity:.05; filter:grayscale(1); }
+  .exit-pill { position:absolute; left:14px; bottom:14px; padding:8px 14px; border-radius:999px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.16); color:rgba(255,255,255,.6); font-size:13px; cursor:pointer; z-index:5; }
+  /* ===== 变体 C：渐隐沉浸 ===== */
+  .v-c-count { background:#000; opacity:0; transition:opacity 1.2s ease; }
+  .v-c-count.show { opacity:1; }
+  .v-c-count .txt { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#e5e7eb; font-size:18px; letter-spacing:2px; }
+  .exit-micro { position:absolute; left:10px; bottom:10px; width:10px; height:10px; border-radius:50%; background:rgba(255,255,255,.14); cursor:pointer; z-index:5; }
+  .exit-confirm { position:absolute; inset:0; background:rgba(0,0,0,.88); display:flex; align-items:center; justify-content:center; z-index:6; }
+  .exit-confirm .box { background:#1f2937; border-radius:14px; padding:20px 24px; text-align:center; color:#e5e7eb; }
+  .exit-confirm .box p { font-size:14px; margin-bottom:14px; }
+  .exit-confirm button { padding:8px 18px; border-radius:10px; border:none; cursor:pointer; font-size:14px; margin:0 6px; }
+  .btn-ok { background:#2563eb; color:#fff; }
+  .btn-no { background:#374151; color:#cbd5e1; }
+  /* 提醒微光（变体 C 特色） */
+  .v-c-black { background:#000; }
+  .v-c-black .glow { position:absolute; inset:8px; border-radius:20px; box-shadow:inset 0 0 60px 12px rgba(96,165,250,.0); transition:box-shadow .8s ease; pointer-events:none; }
+  .v-c-black .glow.on { box-shadow:inset 0 0 80px 20px rgba(96,165,250,.14); }
+  /* 小结 */
+  .summary { position:fixed; inset:0; background:rgba(15,23,42,.92); z-index:50; display:flex; align-items:center; justify-content:center; }
+  .summary .card { width:300px; text-align:center; }
+  .summary h3 { font-size:18px; margin-bottom:10px; }
+  .summary .cells { display:flex; justify-content:space-around; margin:12px 0; }
+  .summary .cell b { display:block; font-size:22px; color:#2563eb; }
+  .summary .cell span { font-size:12px; color:#6b7280; }
+</style>
+</head>
+<body>
+
+<div class="proto-banner"><b>一次性原型 · 专注模式交互</b> —— 非产品代码。点「开始学习」体验进入流程；黑屏内左下角：<b>退出按钮</b>（变体 C 需再确认）+ <b>右侧小点 = 模拟提醒</b>（播真实语音）。底部栏切换变体 A/B/C。</div>
+
+<div class="stage">
+  <div id="degradeHint" class="degrade hidden">⚠️ 本设备/浏览器无法保持屏幕常亮（无唤醒锁），学习过程中可能自动锁屏。建议在系统设置里把「自动锁屏」设为永不。&nbsp;<label><input type="checkbox" id="chkNoWake"> 模拟无唤醒锁设备</label></div>
+  <div class="card">
+    <div class="mascot">🦸</div>
+    <div style="text-align:center;font-size:15px;font-weight:600;margin-top:6px;">坐姿小卫士</div>
+    <div id="statusLine" style="text-align:center;font-size:12px;color:#6b7280;margin-top:4px;">准备好了吗？坐好，点「开始学习」</div>
+    <button class="btn-main" id="btnStart">开始学习</button>
+    <div class="hint" id="hintLine">进入后屏幕将变黑，只保留语音提醒（本原型用 TTS 模拟）</div>
+  </div>
+</div>
+
+<!-- 变体 A：倒计时（数字） -->
+<div id="vaCount" class="overlay v-a-count hidden">
+  <div class="txt">马上进入专注模式</div>
+  <div class="num" id="vaNum">5</div>
+  <div class="txt">屏幕即将变黑，听到提醒语音时坐正即可</div>
+</div>
+<div id="vaBlack" class="overlay v-a-black hidden">
+  <button class="exit-dot" onclick="exitFocus()">✕</button>
+  <button class="exit-dot" style="left:56px;font-size:12px;" onclick="simRemind()">🔔</button>
+</div>
+
+<!-- 变体 B：倒计时（圆环） -->
+<div id="vbCount" class="overlay v-b-count hidden">
+  <div class="txt">闭上眼睛，专注开始</div>
+  <div class="ringwrap">
+    <svg width="160" height="160"><circle cx="80" cy="80" r="70" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="10"/><circle id="vbRing" cx="80" cy="80" r="70" fill="none" stroke="#4ade80" stroke-width="10" stroke-linecap="round" stroke-dasharray="439.8" stroke-dashoffset="0"/></svg>
+    <div class="ringnum" id="vbNum">5</div>
+  </div>
+  <div class="txt">倒计时结束后屏幕变黑，语音提醒会告诉你坐姿</div>
+</div>
+<div id="vbBlack" class="overlay v-b-black hidden">
+  <div class="ghost">🦸</div>
+  <button class="exit-pill" onclick="exitFocus()">结束专注</button>
+  <button class="exit-pill" style="left:auto;right:14px;" onclick="simRemind()">🔔 模拟提醒</button>
+</div>
+
+<!-- 变体 C：无数字渐隐 -->
+<div id="vcCount" class="overlay v-c-count hidden">
+  <div class="txt">屏幕即将变暗，专注开始</div>
+</div>
+<div id="vcBlack" class="overlay v-c-black hidden">
+  <div class="glow" id="vcGlow"></div>
+  <div class="exit-micro" id="vcMicro" onclick="openConfirm()"></div>
+  <div class="exit-confirm hidden" id="vcConfirm">
+    <div class="box"><p>结束专注模式？</p><button class="btn-ok" onclick="exitFocus()">结束</button><button class="btn-no" onclick="closeConfirm()">继续专注</button></div>
+  </div>
+  <button class="exit-pill" style="right:14px;bottom:14px;left:auto;" onclick="simRemind()">🔔 模拟提醒</button>
+</div>
+
+<!-- 小结 -->
+<div id="summary" class="summary hidden">
+  <div class="card">
+    <h3>学习结束</h3>
+    <div class="cells">
+      <div class="cell"><b id="sDur">00:00</b><span>专注时长</span></div>
+      <div class="cell"><b id="sRem">0</b><span>提醒次数</span></div>
+      <div class="cell"><b id="sGood">—</b><span>坐姿良好</span></div>
+    </div>
+    <button class="btn-main" onclick="resetAll()">再来一次</button>
+  </div>
+</div>
+
+<div class="state-bar" id="stateBar">state: idle · variant A</div>
+
+<div class="switcher">
+  <button onclick="cycle(-1)" title="上一个变体">◀</button>
+  <span class="label" id="swLabel">A — 数字极简</span>
+  <button onclick="cycle(1)" title="下一个变体">▶</button>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  const VARIANTS = [
+    { key: 'A', name: '数字极简' },
+    { key: 'B', name: '圆环安抚' },
+    { key: 'C', name: '渐隐沉浸' },
+  ];
+  const COUNTDOWN = 5;
+  let variant = (new URLSearchParams(location.search).get('variant') || 'A').toUpperCase();
+  if (!VARIANTS.some(v => v.key === variant)) variant = 'A';
+  let state = 'idle';       // idle | countdown | focus | summary
+  let timer = null, count = COUNTDOWN;
+  let remindCount = 0, focusSec = 0, focusTimer = null;
+  const $ = (id) => document.getElementById(id);
+
+  const VOICES = ['背要挺直哦', '头抬起来一点哦～', '身体坐正哦'];
+  function speak(text) {
+    if (!('speechSynthesis' in window)) { alert('本浏览器无 TTS（原型用语音提示需 Chrome/Edge/Safari）'); return; }
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'zh-CN'; u.rate = 0.95;
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
+  }
+  function showState() {
+    $('stateBar').textContent = 'state: ' + state + ' · variant ' + variant + ' · 提醒 ' + remindCount + ' 次 · 专注 ' + formatSec(focusSec);
+  }
+  function formatSec(s) { return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }
+
+  function applyVariant() {
+    clearTimeout(timer);
+    stopFocusTimer();
+    state = 'idle';
+    // 隐藏所有覆盖层
+    ['vaCount','vaBlack','vbCount','vbBlack','vcCount','vcBlack','summary'].forEach(id => $(id).classList.add('hidden'));
+    $('vcConfirm').classList.add('hidden');
+    $('swLabel').textContent = variant + ' — ' + VARIANTS.find(v => v.key === variant).name;
+    $('statusLine').textContent = '准备好了吗？坐好，点「开始学习」';
+    $('btnStart').disabled = false;
+    $('degradeHint').classList.toggle('hidden', !$('chkNoWake').checked);
+    history.replaceState(null, '', '?variant=' + variant);
+    showState();
+  }
+
+  function startFlow() {
+    if ($('chkNoWake').checked) $('degradeHint').classList.remove('hidden');
+    state = 'countdown';
+    count = COUNTDOWN;
+    $('btnStart').disabled = true;
+    $('statusLine').textContent = '进入专注模式…';
+    // 显示各自倒计时层
+    ['vaCount','vbCount','vcCount'].forEach(id => $(id).classList.add('hidden'));
+    if (variant === 'A') { $('vaCount').classList.remove('hidden'); $('vaNum').textContent = count; }
+    else if (variant === 'B') { $('vbCount').classList.remove('hidden'); $('vbNum').textContent = count; $('vbRing').style.strokeDashoffset = '0'; }
+    else { $('vcCount').classList.remove('hidden'); requestAnimationFrame(() => requestAnimationFrame(() => $('vcCount').classList.add('show'))); }
+    timer = setInterval(() => {
+      count -= 1;
+      if (count <= 0) { clearInterval(timer); enterFocus(); return; }
+      if (variant === 'A') $('vaNum').textContent = count;
+      else if (variant === 'B') {
+        $('vbNum').textContent = count;
+        $('vbRing').style.strokeDashoffset = String(439.8 * (1 - count / COUNTDOWN));
+      }
+      showState();
+    }, 1000);
+    showState();
+  }
+
+  function enterFocus() {
+    state = 'focus';
+    remindCount = 0; focusSec = 0;
+    ['vaCount','vbCount','vcCount'].forEach(id => $(id).classList.add('hidden'));
+    $('vcCount').classList.remove('show');
+    if (variant === 'A') $('vaBlack').classList.remove('hidden');
+    else if (variant === 'B') $('vbBlack').classList.remove('hidden');
+    else { $('vcBlack').classList.remove('hidden'); $('vcGlow').classList.remove('on'); }
+    $('statusLine').textContent = '专注中（黑屏）… 提醒语音会告诉你坐姿';
+    focusTimer = setInterval(() => { focusSec += 1; showState(); }, 1000);
+    speak('开始学习啦，加油～');
+    showState();
+  }
+
+  function exitFocus() {
+    clearInterval(focusTimer);
+    ['vaBlack','vbBlack','vcBlack'].forEach(id => $(id).classList.add('hidden'));
+    $('vcConfirm').classList.add('hidden');
+    state = 'summary';
+    $('sDur').textContent = formatSec(focusSec);
+    $('sRem').textContent = remindCount;
+    $('sGood').textContent = '—';
+    $('summary').classList.remove('hidden');
+    speak('学习结束，休息一下吧～');
+    showState();
+  }
+
+  function simRemind() {
+    remindCount += 1;
+    const text = VOICES[remindCount % VOICES.length];
+    speak(text);
+    if (variant === 'C') { $('vcGlow').classList.add('on'); setTimeout(() => $('vcGlow').classList.remove('on'), 2600); }
+    showState();
+  }
+  function openConfirm() { $('vcConfirm').classList.remove('hidden'); }
+  function closeConfirm() { $('vcConfirm').classList.add('hidden'); }
+  function resetAll() {
+    $('summary').classList.add('hidden');
+    applyVariant();
+  }
+  function stopFocusTimer() { clearInterval(focusTimer); focusTimer = null; }
+  function cycle(dir) {
+    const i = VARIANTS.findIndex(v => v.key === variant);
+    variant = VARIANTS[(i + dir + VARIANTS.length) % VARIANTS.length].key;
+    applyVariant();
+  }
+
+  $('btnStart').addEventListener('click', startFlow);
+  $('chkNoWake').addEventListener('change', (e) => $('degradeHint').classList.toggle('hidden', !e.target.checked));
+  document.addEventListener('keydown', (e) => {
+    const tag = (document.activeElement && document.activeElement.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    if (e.key === 'ArrowLeft') cycle(-1);
+    else if (e.key === 'ArrowRight') cycle(1);
+    else if (e.key === 'Escape' && state === 'focus') exitFocus();
+  });
+  // 原型框架状态暴露
+  window.__protoState = () => ({ variant, state, count, remindCount, focusSec });
+  applyVariant();
+})();
+</script>
+</body>
+</html>

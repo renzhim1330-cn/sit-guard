@@ -25,6 +25,11 @@
   let poseLandmarker = null, lastTs = performance.now(), lastVideoTime = -1;
   let demoActive = false, calibratePendingStart = false;
   let recorder = null, recordingKey = null, recordingIdx = -1;
+  /* 专注模式（票：专注模式——黑屏遮罩 + 唤醒锁防自动锁屏） */
+  const FOCUS_SECONDS = 5, FOCUS_RING = 439.8;   // 2π×70（圆环周长）
+  let focusState = 'none';                        // none | countdown | black
+  let focusTimer = null, focusCount = FOCUS_SECONDS;
+  let wakeLockSentinel = null;
 
   const app = {
     ready: false, calibrated: false,
@@ -179,6 +184,9 @@
     app.lastRemindAt = 0; app.mood = 'ok';
     engine.resetGrace();
     SitGuardVoice.play('start');
+    try { sessionStorage.setItem('sgFocusActive', '1'); } catch (e) {}
+    requestWakeLock();                 // 用户手势内发起（专注模式核心依赖）
+    enterFocusCountdown();             // 开始学习 → 自动进入专注倒计时
     render();
   }
 
@@ -187,6 +195,9 @@
     const durationSec = app.totalSec - Math.max(0, app.leftSec);
     app.running = false; app.paused = false; app.lost = false; app.reinforce = false; app.lostMs = 0;
     app.mood = app.calibrated ? 'ok' : 'idle';
+    exitFocusOverlay();                // 清理专注覆盖层与倒计时
+    releaseWakeLock();
+    try { sessionStorage.removeItem('sgFocusActive'); } catch (e) {}
     saveHistory({ ts: Date.now(), goodSec: Math.round(app.goodSec), remind: app.remindCount, praise: app.praiseCount, durationSec });
     showSummary(durationSec);
     SitGuardVoice.play('end');
@@ -198,6 +209,99 @@
     app.paused = !app.paused;
     render();
   }
+
+  /* ---------------- 专注模式（黑屏遮罩 + 唤醒锁） ---------------- */
+  async function requestWakeLock() {
+    if (!('wakeLock' in navigator) || wakeLockSentinel) return;
+    try {
+      wakeLockSentinel = await navigator.wakeLock.request('screen');
+      wakeLockSentinel.addEventListener('release', () => { wakeLockSentinel = null; });
+      $('focusWarn').classList.add('hidden');
+    } catch (e) {
+      wakeLockSentinel = null;
+      $('focusWarn').classList.remove('hidden');   // 降级：提示后仍可用
+    }
+  }
+  function releaseWakeLock() {
+    if (wakeLockSentinel) { try { wakeLockSentinel.release(); } catch (e) {} wakeLockSentinel = null; }
+  }
+
+  function enterFocusCountdown() {
+    if (focusState !== 'none') return;
+    focusState = 'countdown';
+    focusCount = FOCUS_SECONDS;
+    $('focusWarn').classList.add('hidden');
+    $('fNum').textContent = String(focusCount);
+    $('fRing').style.strokeDashoffset = '0';
+    $('focusBlack').classList.add('hidden');
+    $('focusCount').classList.remove('hidden');
+    $('ovFocus').classList.add('open');
+    if (!('wakeLock' in navigator)) $('focusWarn').classList.remove('hidden');
+    SitGuardVoice.play('focus');
+    focusTimer = setInterval(() => {
+      focusCount -= 1;
+      if (focusCount <= 0) { clearInterval(focusTimer); focusTimer = null; enterFocusBlack(); return; }
+      $('fNum').textContent = String(focusCount);
+      $('fRing').style.strokeDashoffset = String(FOCUS_RING * (1 - focusCount / FOCUS_SECONDS));
+    }, 1000);
+    updateFocusUI();
+  }
+  function cancelFocusCountdown() {
+    if (focusTimer) { clearInterval(focusTimer); focusTimer = null; }
+    focusState = 'none';
+    $('ovFocus').classList.remove('open');
+    updateFocusUI();
+  }
+  function enterFocusBlack() {
+    focusState = 'black';
+    $('focusCount').classList.add('hidden');
+    $('focusBlack').classList.remove('hidden');
+  }
+  function exitFocusBlack() {
+    focusState = 'none';
+    $('ovFocus').classList.remove('open');
+    updateFocusUI();                       // 回正常界面，可再点「进入专注」
+  }
+  function exitFocusOverlay() {
+    if (focusTimer) { clearInterval(focusTimer); focusTimer = null; }
+    focusState = 'none';
+    $('ovFocus').classList.remove('open');
+    updateFocusUI();
+  }
+  function updateFocusUI() {
+    $('btnFocus').disabled = !app.running || focusState !== 'none';
+  }
+
+  /* 锁屏 / 切后台恢复（研究票结论：锁屏=页面挂起/可能重载，恢复需重取摄像头） */
+  async function recoverCamera() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: false,
+      });
+      video.srcObject = stream;
+      await video.play();
+      return true;
+    } catch (e) { return false; }
+  }
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState !== 'visible') return;
+    if (app.running && !wakeLockSentinel) requestWakeLock();   // 唤醒锁在隐藏时被系统释放
+    const tracks = video.srcObject ? video.srcObject.getTracks() : [];
+    if (app.running && !tracks.some((t) => t.readyState === 'live')) {
+      const ok = await recoverCamera();
+      if (!ok) showBanner('摄像头恢复失败，请点「重试摄像头」');
+    }
+  });
+  window.addEventListener('pageshow', (e) => {
+    if (e.persisted) {                                   // bfcache 恢复：流可能已死
+      if (app.running) recoverCamera();
+      return;
+    }
+    let wasFocus = false;
+    try { wasFocus = sessionStorage.getItem('sgFocusActive') === '1'; sessionStorage.removeItem('sgFocusActive'); } catch (err) {}
+    if (wasFocus) toast('页面被系统刷新，学习已中断——请重新校准后开始');
+  });
 
   /* ---------------- 校准 ---------------- */
   function openCalibrate(pendingStart) {
@@ -332,6 +436,7 @@
     const bp = $('btnPause');
     bp.disabled = !app.running;
     bp.textContent = app.paused ? '继续' : '暂停';
+    updateFocusUI();
   }
 
   /* ---------------- 语音列表 ---------------- */
@@ -343,6 +448,7 @@
     { key: 'praise', name: '坐正表扬' },
     { key: 'start', name: '开始学习' },
     { key: 'end', name: '结束学习' },
+    { key: 'focus', name: '进入专注' },
   ];
   function renderVoiceList() {
     const warn = SitGuardVoice.hasZhVoice ? '' :
@@ -460,6 +566,9 @@
   /* ---------------- 事件绑定 ---------------- */
   $('btnStart').addEventListener('click', () => { app.running ? endSession() : startSession(); });
   $('btnPause').addEventListener('click', togglePause);
+  $('btnFocus').addEventListener('click', enterFocusCountdown);
+  $('btnFocusCancel').addEventListener('click', cancelFocusCountdown);
+  $('btnFocusExit').addEventListener('click', exitFocusBlack);
   $('btnCalibrate').addEventListener('click', () => openCalibrate(false));
   $('btnCalibrateDone').addEventListener('click', doCalibrate);
   $('btnCalibrateCancel').addEventListener('click', closeCalibrate);
