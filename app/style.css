@@ -30,6 +30,13 @@ header {
 .banner.hidden { display:none; }
 .banner .ghost { flex:none; }
 
+/* 隐私承诺（常驻，顶部显眼位置） */
+.privacy-note {
+  background:#ecfdf5; border:1px solid #a7f3d0; color:#047857;
+  border-radius:12px; padding:8px 14px; margin-bottom:10px;
+  font-size:13px; text-align:center;
+}
+
 .bgrid { display:flex; flex-direction:column; gap:12px; }
 @media (min-width: 760px) {
   .bgrid { display:grid; grid-template-columns:1fr 1fr; }
