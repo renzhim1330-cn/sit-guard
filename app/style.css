@@ -36,35 +36,35 @@ header {
   border-radius:12px; padding:8px 14px; margin-bottom:10px;
   font-size:13px; text-align:center;
 }
+/* 模型加载提示（加载完成后隐藏） */
+.loading-note {
+  background:#eff6ff; border:1px solid #bfdbfe; color:#1d4ed8;
+  border-radius:12px; padding:8px 14px; margin-bottom:10px;
+  font-size:13px; text-align:center;
+}
+.loading-note.hidden { display:none; }
 
 .card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px 16px; }
 .card h3 { margin:0 0 8px; font-size:13px; color:var(--muted); font-weight:600; }
 
-/* 合并主卡：坐姿状态（左，浅色底块）+ 学习时段（右） */
+/* 主卡：学习时段（倒计时 + 按钮） */
 .maincard {
   background:#fff; border:1px solid var(--line); border-radius:14px;
   padding:18px 16px 14px; margin-bottom:12px;
+  text-align:center;
 }
-.mainrow { display:flex; gap:14px; align-items:center; }
-.statuscard {
-  flex:0 0 42%; display:flex; flex-direction:column; align-items:center; gap:4px;
-  background:#f8fafc; border:1px solid var(--line); border-radius:14px; padding:14px 6px;
-}
-.st-text { font-weight:700; font-size:16px; text-align:center; }
-.st-sub { font-size:12px; color:var(--muted); text-align:center; }
-.sessioncard { flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; }
-.digits { font-size:38px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:1px; }
-.timer-sub { font-size:12px; color:var(--muted); margin-bottom:8px; text-align:center; }
-.btnrow { display:flex; gap:8px; width:100%; }
+.digits { font-size:42px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:1px; }
+.timer-sub { font-size:12px; color:var(--muted); margin-bottom:10px; }
+.btnrow { display:flex; gap:8px; }
 .btn-primary {
   flex:1; background:var(--accent); color:#fff; border:none; border-radius:12px;
-  padding:11px 0; font-size:15px; font-weight:600; cursor:pointer;
+  padding:12px 0; font-size:16px; font-weight:600; cursor:pointer;
 }
 .btn-primary:disabled { opacity:.5; cursor:default; }
 .btn-primary.danger { background:var(--bad); }
 .ghost {
   background:#f1f5f9; border:1px solid var(--line); color:var(--ink);
-  border-radius:12px; padding:11px 14px; font-size:14px; cursor:pointer;
+  border-radius:12px; padding:12px 14px; font-size:14px; cursor:pointer;
 }
 .ghost:disabled { opacity:.5; cursor:default; }
 .ghost.small { padding:6px 12px; font-size:12px; }

@@ -14,12 +14,6 @@
     },
     graceSeconds: 3.5, cooldownSeconds: 30, praiseMinInterval: 20, praiseHoldSeconds: 6, recoveryHoldSeconds: 6,
   };
-  const POSTURE_TEXT = {
-    slouch:   { t:'背要挺直哦', s:'背有点弯了，挺直一点～' },
-    headDrop: { t:'头太低啦',   s:'把脑袋抬起来一点哦～' },
-    tilt:     { t:'身体坐正哦', s:'别歪着坐，坐正一点～' },
-  };
-
   const engine = SitGuardEngine.createEngine(CFG);
   const video = $('video');
   let poseLandmarker = null, lastTs = performance.now(), lastVideoTime = -1;
@@ -87,8 +81,9 @@
       }),
       initCamera(),
     ]);
-    if (!modelOk || !camOk) return;
+    if (!modelOk || !camOk) { $('loadingNote').classList.add('hidden'); return; }
     app.ready = true;
+    $('loadingNote').classList.add('hidden');
     $('btnStart').disabled = false;
     $('btnDemoCalibrate').disabled = false;
     requestAnimationFrame(loop);
@@ -173,11 +168,6 @@
       if (states[k].band === 'warn') w = 'warn';
     }
     return w;
-  }
-  function worstPosture(states, bands) {
-    for (const k of Object.keys(states)) if (states[k].band === 'bad') return k;
-    for (const k of Object.keys(states)) if (states[k].band === 'warn') return k;
-    return null;
   }
 
   /* ---------------- 会话动作 ---------------- */
@@ -404,19 +394,11 @@
 
   /* ---------------- 渲染 ---------------- */
   function render() {
-    // 吉祥物
-    const mascot = $('mascot');
-    mascot.className = 'mascot m-' + app.mood;
-    mascot.querySelector('.mouth').textContent = app.mood === 'lost' ? '？' : '';
     // 头栏
     const dot = $('statusDot');
     const dotCls = { ok: 's-ok', warn: 's-warn', bad: 's-bad', remind: 's-bad', lost: 's-lost' }[app.mood] || '';
     dot.className = 'dot ' + dotCls;
     $('statusLabel').textContent = stateLabel();
-    // 状态语
-    const [t, s] = statusText();
-    $('stText').textContent = t;
-    $('stSub').textContent = s;
     renderTimer();
     $('btnDemoCalibrate').textContent = app.calibrated ? '重新校准' : '校准';
   }
@@ -427,17 +409,6 @@
     if (!app.running) return '未开始';
     if (app.paused) return '已暂停';
     return { ok: '学习中', warn: '要注意咯', bad: '超标·宽限中', remind: '提醒中' }[app.mood] || '学习中';
-  }
-  function statusText() {
-    if (!app.ready) return ['正在加载检测模型…', '首次访问需联网下载（约几秒），请稍候'];
-    if (app.lost) return app.reinforce ? ['还在吗？', '回来继续学习哦～'] : ['看不到你啦', '坐回来继续学习吧～'];
-    if (!app.running) return ['准备好了吗？', '坐好，点「开始学习」'];
-    if (app.paused) return ['已暂停', '点「继续」回到学习'];
-    if (app.mood === 'remind') return ['叮咚～', '正在提醒你坐正哦'];
-    if (app.mood === 'ok') return ['坐得真棒！', '背挺直，继续保持～'];
-    const k = worstPosture(app.lastStates, ['bad', 'warn']);
-    if (k && POSTURE_TEXT[k]) return [POSTURE_TEXT[k].t, POSTURE_TEXT[k].s];
-    return ['要注意咯', '坐正一点哦～'];
   }
 
   function renderBadges(containerId) {
