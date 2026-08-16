@@ -25,7 +25,7 @@ except ImportError:
 
 # 与 app/voice.js 的 SCRIPTS 保持一致（类别-序号 = 文件名）
 SCRIPTS = {
-    "slouch":    ["背挺直～", "背要挺直哦～"],
+    "slouch":    ["腰背挺直～", "背要挺直哦～"],
     "headDrop":  ["头抬起来一点哦～", "脑袋抬起来一点～"],
     "tilt":      ["身体坐正，别歪哦～", "坐直一点，别歪啦～"],
     "fallback":  ["坐端正哦～", "换个舒服又端正的姿势～"],
