@@ -718,10 +718,12 @@
   }
 
   $('btnSettings').addEventListener('click', () => { renderSettings(); $('ovSettings').classList.add('open'); });
-  $('btnSettingsClose').addEventListener('click', () => $('ovSettings').classList.remove('open'));
+  $('btnSettingsClose').addEventListener('click', () => $('ovSettings').classList.remove('open', 'on-top'));
+  /* 演示模式里的参数设置：复用家长面板，叠在演示层之上（on-top） */
+  $('btnDemoSettings').addEventListener('click', () => { renderSettings(); $('ovSettings').classList.add('open', 'on-top'); });
   /* 重新校准（家长面板入口）：关设置 → 校准倒计时（不进专注） */
   $('btnRecalibrate').addEventListener('click', () => {
-    $('ovSettings').classList.remove('open');
+    $('ovSettings').classList.remove('open', 'on-top');
     requestWakeLock();
     beginCalibrateCountdown(false);
   });
