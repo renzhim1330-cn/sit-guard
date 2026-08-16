@@ -58,11 +58,17 @@
 
 <video id="video" muted playsinline></video>
 
-<!-- 校准覆盖层 -->
+<!-- 校准覆盖层（骨架演示：5 秒倒计时采集，结束后取均值设置校准值） -->
 <div class="overlay" id="ovCalibrate">
   <h2>先校准一下～</h2>
-  <p>请坐端正，眼睛看屏幕，然后点下面的按钮<br>我会记住你「坐好」的样子</p>
-  <button class="bigbtn" id="btnCalibrateDone">我坐好了，点这里</button>
+  <p>请坐端正，眼睛看屏幕<br>倒计时结束会自动记住你「坐好」的样子</p>
+  <div class="f-ringwrap">
+    <svg width="160" height="160" viewBox="0 0 160 160">
+      <circle cx="80" cy="80" r="70" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="10"/>
+      <circle id="calibRing" cx="80" cy="80" r="70" fill="none" stroke="#4ade80" stroke-width="10" stroke-linecap="round" stroke-dasharray="439.8" stroke-dashoffset="0"/>
+    </svg>
+    <div class="f-num" id="calibNum">5</div>
+  </div>
   <button class="closebtn" id="btnCalibrateCancel">取消</button>
 </div>
 

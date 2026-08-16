@@ -22,10 +22,12 @@
   /* 专注模式（票：专注模式——黑屏遮罩 + 唤醒锁防自动锁屏；倒计时兼作自动校准引导） */
   const FOCUS_SECONDS = 5, FOCUS_RING = 439.8;   // 2π×70（圆环周长）
   const CALIB_TILT_MAX = 15;                      // 质量门：校准基准的侧倾上限（歪着坐不当基准）
+  const CALIB_DEMO_SECONDS = 5;                   // 骨架演示校准：倒计时秒数
   let focusState = 'none';                        // none | countdown | black
   let focusTimer = null, focusCount = FOCUS_SECONDS;
   let wakeLockSentinel = null;
   let calibCollect = false, calibAutoFocus = false, calibBuffer = [];  // 自动校准：末段快照
+  let calibDemoTimer = null, calibDemoCount = CALIB_DEMO_SECONDS, calibDemoCollect = false, calibDemoBuffer = [];  // 演示校准：全程采集
 
   const app = {
     ready: false, calibrated: false,
@@ -116,6 +118,10 @@
     if (calibCollect) {                  // 自动校准：收集最近 ~2s 快照（末段均值用）
       calibBuffer.push({ slouch: m.slouch, headDrop: m.headDrop, tilt: m.tilt });
       if (calibBuffer.length > 20) calibBuffer.shift();
+    }
+    if (calibDemoCollect) {              // 演示校准：收集整个倒计时（结束后取均值）
+      calibDemoBuffer.push({ slouch: m.slouch, headDrop: m.headDrop, tilt: m.tilt });
+      if (calibDemoBuffer.length > 120) calibDemoBuffer.shift();
     }
     if (app.lost) {                       // 票 07：恢复检测
       app.lost = false; app.lostMs = 0; app.reinforce = false;
@@ -337,18 +343,44 @@
   });
 
   /* ---------------- 校准 ---------------- */
-  /* 主页校准已自动化（开始学习 = 校准倒计时）；此手动校准层仅供骨架演示模式使用 */
+  /* 主页校准已自动化（开始学习 = 校准倒计时）；此手动校准层仅供骨架演示模式使用：
+   * 5 秒圆环倒计时全程采集，结束后取均值 + 质量门（检测到人、基准侧倾 < 15°）再设置校准值 */
   function openCalibrate() {
+    if (calibDemoTimer) return;
+    calibDemoBuffer = [];
+    calibDemoCollect = true;
+    calibDemoCount = CALIB_DEMO_SECONDS;
+    $('calibNum').textContent = String(calibDemoCount);
+    $('calibRing').style.strokeDashoffset = '0';
     $('ovCalibrate').classList.add('open');
+    calibDemoTimer = setInterval(() => {
+      calibDemoCount -= 1;
+      if (calibDemoCount <= 0) { clearInterval(calibDemoTimer); calibDemoTimer = null; onCalibDemoEnd(); return; }
+      $('calibNum').textContent = String(calibDemoCount);
+      $('calibRing').style.strokeDashoffset = String(FOCUS_RING * (1 - calibDemoCount / CALIB_DEMO_SECONDS));
+    }, 1000);
   }
   function closeCalibrate() {
+    if (calibDemoTimer) { clearInterval(calibDemoTimer); calibDemoTimer = null; }
+    calibDemoCollect = false;
     $('ovCalibrate').classList.remove('open', 'on-top');
   }
-  function doCalibrate() {
-    if (!app.liveMeasures) { toast('还没检测到你——请坐正面对摄像头再点'); return; }
-    engine.calibrate(app.liveMeasures);
+  function onCalibDemoEnd() {
+    calibDemoCollect = false;
+    const ok = calibDemoBuffer.length >= 3 &&
+      Math.abs(calibDemoBuffer.reduce((a, x) => a + x.tilt, 0) / calibDemoBuffer.length) < CALIB_TILT_MAX;
+    if (!ok) {
+      $('ovCalibrate').classList.remove('open', 'on-top');
+      toast('没检测到你——请坐正面对摄像头，再点「校准」');
+      return;
+    }
+    engine.calibrate({
+      slouch: calibDemoBuffer.reduce((a, x) => a + x.slouch, 0) / calibDemoBuffer.length,
+      headDrop: calibDemoBuffer.reduce((a, x) => a + x.headDrop, 0) / calibDemoBuffer.length,
+      tilt: calibDemoBuffer.reduce((a, x) => a + x.tilt, 0) / calibDemoBuffer.length,
+    });
     app.calibrated = true;
-    closeCalibrate();
+    $('ovCalibrate').classList.remove('open', 'on-top');
     toast('✅ 校准完成（已记住你的标准坐姿）');
     render();
   }
@@ -586,7 +618,6 @@
   });
   $('btnFocusCancel').addEventListener('click', cancelFocusCountdown);
   $('btnFocusExit').addEventListener('click', exitFocusBlack);
-  $('btnCalibrateDone').addEventListener('click', doCalibrate);
   $('btnCalibrateCancel').addEventListener('click', closeCalibrate);
   $('btnDemo').addEventListener('click', () => { demoActive = true; $('ovDemo').classList.add('open'); });
   // 演示模式里的校准：复用同一个校准覆盖层，但要叠在演示层之上（on-top）
