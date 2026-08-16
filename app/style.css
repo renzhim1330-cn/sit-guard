@@ -73,6 +73,14 @@ header {
 .ghost:disabled { opacity:.5; cursor:default; }
 .ghost.small { padding:6px 12px; font-size:12px; }
 
+/* 专注模式入口（独立一行，避免挤占「开始学习/暂停」主按钮行） */
+.focusbtn {
+  width:100%; margin-top:8px; background:#f8fafc; border:1px solid var(--line); color:var(--muted);
+  border-radius:10px; padding:8px 0; font-size:13px; cursor:pointer; font-family:inherit;
+}
+.focusbtn:disabled { opacity:.5; cursor:default; }
+.focusbtn:not(:disabled):hover { border-color:var(--accent); color:var(--accent); }
+
 /* 语音 */
 .voiceopts { display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted); margin-bottom:6px; }
 .voiceopts input[type=range] { flex:1; accent-color:var(--accent); }
