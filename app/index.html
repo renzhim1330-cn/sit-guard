@@ -60,14 +60,8 @@
     </div>
 
     <div class="card">
-      <h3>提醒语音（预录 / 试听）</h3>
-      <div class="voiceopts">
-        <span>音量</span>
-        <input type="range" id="volRange" min="0" max="100" value="80">
-        <label class="mutechk"><input type="checkbox" id="chkMute"> 静音</label>
-      </div>
-      <ul class="voicelist" id="voiceList"></ul>
-      <div class="muted small">默认用浏览器语音合成朗读文案；点「录音」可换成家长 / 老师真实声音</div>
+      <h3>提醒语音</h3>
+      <button class="calbtn" id="btnVoice" style="width:100%;">🔊 设置提醒语音（试听 / 录音）</button>
     </div>
 
     <div class="card">
@@ -117,6 +111,23 @@
     <div class="settings-foot">
       <button class="bigbtn" id="btnResetParams">恢复默认（标准）</button>
       <button class="closebtn" id="btnSettingsClose">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 提醒语音设置覆盖层（主卡片收敛为入口按钮，省主页面空间） -->
+<div class="overlay" id="ovVoice">
+  <div class="settings-panel">
+    <h2>提醒语音</h2>
+    <p class="note">默认用内置语音（晓晓声线，移动端无需 TTS）；点「录音」可换成家长 / 老师真实声音，试听 / 重录 / 清空随时可改。</p>
+    <div class="voiceopts">
+      <span>音量</span>
+      <input type="range" id="volRange" min="0" max="100" value="80">
+      <label class="mutechk"><input type="checkbox" id="chkMute"> 静音</label>
+    </div>
+    <div class="sections"><ul class="voicelist" id="voiceList"></ul></div>
+    <div class="settings-foot">
+      <button class="closebtn" id="btnVoiceClose">关闭</button>
     </div>
   </div>
 </div>

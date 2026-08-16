@@ -471,6 +471,9 @@
     }).join('');
   }
 
+  $('btnVoice').addEventListener('click', () => { renderVoiceList(); $('ovVoice').classList.add('open'); });
+  $('btnVoiceClose').addEventListener('click', () => $('ovVoice').classList.remove('open'));
+
   $('voiceList').addEventListener('click', (e) => {
     const b = e.target.closest('[data-act]'); if (!b) return;
     const k = b.dataset.k;
