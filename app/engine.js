@@ -8,10 +8,10 @@
  *    一旦真正出带到疑似/正常（d < t2−hys）即清零重算——边界抖动不再跨时段累积红色时长；
  *  - 真正改正（全部姿态回到「正常」并保持 recoveryHoldSeconds，默认 6s）→ 全姿态宽限清零，重新开始。
  *
- * 表扬（对齐用户目标：必须全绿才表扬，一次恢复只表扬一次）：
- *  - 三个姿态全部处于「正常」（黄色疑似不算），保持 praiseHoldSeconds（默认 6s），
- *    且本次全绿周期内确实出现过超标（wasBadAny）→ 表扬一次；
- *  - 表扬后本次全绿期间不再重复表扬；再次超标再恢复才再次表扬；≥praiseMinInterval（20s）。
+ * 表扬（对齐用户目标：批评后坐正才表扬，一次提醒一次表扬）：
+ *  - 只有「真正发出过提醒」之后坐正（三个姿态全部回到「正常」并保持 praiseHoldSeconds，默认 6s）才表扬；
+ *    表扬是对「听到批评并改正」的奖励——擦边超标（没满宽限、没发过提醒）不表扬；
+ *  - 表扬后该次提醒不再重复表扬；再次提醒、再改正才再次表扬；≥praiseMinInterval（20s）。
  */
 (function (global) {
   'use strict';
@@ -20,17 +20,17 @@
     const keys = Object.keys(cfg.postures);
     let baseline = null;
     const band = {}, grace = {};
-    let allOkSince = -1, wasBadAny = false;
+    let allOkSince = -1;
     let cooldownLeft = 0, reminderTotal = 0, time = 0;
-    let praiseCount = 0, lastPraiseAt = -Infinity;
+    let praiseCount = 0, lastPraiseAt = -Infinity, remindedSincePraise = false;
     const snapshot = {};
 
     function calibrate(current) {
       baseline = { ...current };
       for (const k of keys) { band[k] = 'ok'; grace[k] = 0; }
-      allOkSince = -1; wasBadAny = false;
+      allOkSince = -1;
       cooldownLeft = 0; reminderTotal = 0;
-      praiseCount = 0; lastPraiseAt = -Infinity;
+      praiseCount = 0; lastPraiseAt = -Infinity; remindedSincePraise = false;
       return { ...baseline };
     }
 
@@ -55,9 +55,6 @@
         else if (prev === 'warn') { if (d >= t2) next = 'bad'; else if (d < t1 - hys) next = 'ok'; }
         else if (prev === 'bad' && d < t2 - hys) next = 'warn';
         band[k] = next;
-        if (next === 'bad') {
-          wasBadAny = true;                        // 本全绿周期内出现过超标（表扬的前提）
-        }
         if (d >= t2) {                             // 宽限只累计「真实超标」（d≥t2）的连续时间
           grace[k] += dt;                          // 迟滞粘滞区（t2−hys ~ t2）暂停不计
           if (grace[k] >= cfg.graceSeconds) ready.push(k);
@@ -79,10 +76,10 @@
           for (const k of keys) grace[k] = 0;
           allOkSince = -1;                         // 重新武装：破绿后重新计时
         }
-        if (wasBadAny && okFor >= cfg.praiseHoldSeconds && time - lastPraiseAt >= cfg.praiseMinInterval) {
+        if (remindedSincePraise && okFor >= cfg.praiseHoldSeconds && time - lastPraiseAt >= cfg.praiseMinInterval) {
           events.push({ type: 'praise', at: time });
           praiseCount += 1; lastPraiseAt = time;
-          wasBadAny = false;                       // 一次恢复只表扬一次
+          remindedSincePraise = false;             // 一次提醒只表扬一次（提醒→改正→表扬）
         }
       } else {
         allOkSince = -1;
@@ -100,6 +97,7 @@
           reminderTotal += 1;
           cooldownLeft = cfg.cooldownSeconds;
           grace[k] = 0;                            // 本轮提醒完成，重新计满宽限进入下一轮
+          remindedSincePraise = true;              // 表扬只跟随提醒（批评后坐正才表扬）
         }
       }
       return {
