@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>坐姿素材离线分析</title>
+<!--
+  票 08：离线回放分析页。选本地视频 → 本地逐帧检测（MediaPipe）→ 复用 measure.js 度量公式 + engine.js 判定引擎
+  输出三度量轨迹、偏离分布（直方图 / 分位数）、「标准→动作→回正」台阶自动切分、各档均值、
+  按当前阈值（含迟滞 / 宽限）的提醒触发帧与误报统计、阈值建议。全程本地，视频不上传。
+  运行：Chrome/Edge 双击本文件即可（首次需联网下载 MediaPipe 模型）。
+-->
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif; background:#eef1f5; color:#1f2937; line-height:1.6; }
+  .wrap { max-width:900px; margin:0 auto; padding:20px 14px 60px; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  h2 { font-size:14px; margin:16px 0 6px; color:#6b7280; }
+  .note { font-size:12px; color:#6b7280; margin:0 0 14px; }
+  .card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:14px 16px; margin-bottom:12px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:13px; margin:6px 0; }
+  .row label { color:#6b7280; }
+  input[type=number], input[type=text] { border:1px solid #e5e7eb; border-radius:8px; padding:6px 8px; font-size:13px; }
+  input[type=number] { width:70px; }
+  button { border:none; border-radius:10px; padding:8px 16px; font-size:13px; font-weight:600; cursor:pointer; background:#2563eb; color:#fff; }
+  button:disabled { opacity:.5; cursor:default; }
+  button.ghost { background:#f1f5f9; color:#1f2937; border:1px solid #e5e7eb; }
+  canvas { width:100%; height:360px; background:#0f172a; border-radius:10px; display:block; touch-action:none; }
+  table { border-collapse:collapse; width:100%; font-size:12px; }
+  th, td { border:1px solid #e5e7eb; padding:5px 8px; text-align:right; }
+  th:first-child, td:first-child { text-align:left; }
+  pre { background:#0f172a; color:#d1fae5; border-radius:10px; padding:12px; font-size:12px; overflow:auto; white-space:pre-wrap; }
+  .muted { color:#6b7280; }
+  .hint { font-size:12px; color:#6b7280; }
+  #video { display:none; }
+  #chartCard.ready #video { display:block; width:100%; max-height:220px; object-fit:contain; background:#000; border-radius:10px; margin-bottom:12px; }
+</style>
+<script type="module">
+  try {
+    const mod = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.mjs");
+    window.__mp = { FilesetResolver: mod.FilesetResolver, PoseLandmarker: mod.PoseLandmarker };
+  } catch (e) {
+    window.__mpError = (e && e.message) ? e.message : String(e);
+  }
+  window.dispatchEvent(new Event('mp-loaded'));
+</script>
+</head>
+<body>
+<div class="wrap">
+  <h1>坐姿素材离线分析</h1>
+  <p class="note">本地处理，视频不上传。步骤：选视频 → 开始收集 → 自动取开头「标准坐」段为基准（可在轨迹图上框选改）→ 自动切分台阶或手动标注区间 → 看各档偏离分布、提醒触发帧与阈值建议。</p>
+
+  <div class="card">
+    <div class="row">
+      <input type="file" id="fileInput" accept="video/*">
+      <button id="btnAnalyze" disabled>开始收集</button>
+      <span id="progress" class="hint"></span>
+    </div>
+    <div class="row hint">
+      收集 = 顺序播放一遍并逐帧检测（复用 measure.js 同一度量公式与 App 完全一致）。视频播完自动停止；数据留在内存，之后所有操作都不再检测。
+    </div>
+  </div>
+
+  <div class="card" id="chartCard" hidden>
+    <video id="video" muted playsinline controls></video>
+
+    <h2>① 轨迹图（原始度量；三子图：驼背° / 头过低% / 侧倾°）</h2>
+    <canvas id="rawChart"></canvas>
+    <div class="hint">滚轮缩放时间轴 · 按住 Alt 拖动平移 · 双击复位 · 按住拖动 = 框选基准段 · 单击 = 回放定位到该时刻（下方视频可播放）</div>
+
+    <h2>② 基准段（校准基准 = 该时段内各度量的均值）</h2>
+    <div class="row">
+      <label>起</label><input type="number" id="baseStart" value="0" step="0.1" min="0">
+      <label>止</label><input type="number" id="baseEnd" value="3" step="0.1" min="0">
+      <label>秒</label>
+      <button id="btnApplyBase">应用基准</button>
+      <span id="baseInfo" class="hint"></span>
+    </div>
+
+    <h2>③ 偏离图（偏离基准；黄/红虚线 = 当前阈值 t1/t2；红竖线 ▲ = 按当前阈值+迟滞+宽限会触发提醒的帧）</h2>
+    <div class="row" id="thresholdInputs"></div>
+    <canvas id="devChart"></canvas>
+    <div class="hint">在偏离图上按住拖动选择时间区间 → 点「添加区间」统计该段偏离；区间名含「正常」的段用于误报统计。</div>
+    <div class="row">
+      <input type="text" id="segName" list="segNames" placeholder="区间名，如 轻度驼背">
+      <datalist id="segNames">
+        <option>轻度驼背</option><option>中度驼背</option><option>重度驼背</option>
+        <option>轻度低头</option><option>中度低头</option><option>重度低头</option>
+        <option>轻度侧倾</option><option>中度侧倾</option><option>重度侧倾</option>
+        <option>正常动作</option>
+      </datalist>
+      <button id="btnAddSeg">添加选中区间</button>
+      <button id="btnDelSeg" class="ghost">删除最后区间</button>
+      <span id="segInfo" class="hint"></span>
+    </div>
+
+    <h2>④ 区间统计与自动切分</h2>
+    <div class="row">
+      <button id="btnAutoSeg">自动切分「标准→动作→回正」台阶</button>
+      <span class="hint">按偏离台阶自动分档命名（驼背-轻/中/重…）；不满意的档可「删除最后区间」后手动重标</span>
+    </div>
+    <table id="segTable"><thead></thead><tbody></tbody></table>
+
+    <h2>⑤ 阈值建议（各档分布 + 直方图 + 提醒模拟 + 误报统计）</h2>
+    <pre id="suggestion">（应用基准并添加区间后自动生成建议）</pre>
+
+    <div class="row">
+      <button id="btnExport">导出 CSV</button>
+      <span class="hint">每帧原始度量 + 偏离值 + 区间统计 + 提醒模拟，便于留存对比</span>
+    </div>
+  </div>
+</div>
+
+<script src="measure.js"></script>
+<script src="engine.js"></script>
+<script src="analyzer.js"></script>
+</body>
+</html>
