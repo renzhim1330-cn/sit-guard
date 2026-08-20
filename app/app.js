@@ -76,7 +76,7 @@
   }
 
   async function boot() {
-    // 模型下载与摄像头授权并行：首次访问模型需下载数秒，期间立即弹出摄像头授权，避免干等
+    // 模型下载与摄像头授权并行：首次访问模型需下载约 4～7 分钟（Google Cloud Storage，国内较慢），期间立即弹出摄像头授权，避免干等
     const [modelOk, camOk] = await Promise.all([
       initMediaPipe().then(() => true).catch((e) => {
         showBanner('检测模型加载失败（首次运行需联网下载）：' + e.message);

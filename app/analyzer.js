@@ -77,7 +77,7 @@
   /* ---------------- 收集 ---------------- */
   $('btnAnalyze').addEventListener('click', async () => {
     $('btnAnalyze').disabled = true;
-    $('progress').textContent = '加载模型…（首次需联网下载，约几秒）';
+    $('progress').textContent = '加载模型…（首次需联网下载，约 4～7 分钟。模型依赖 Google Cloud Storage，国内访问较慢，下载后会缓存，下次只需几秒）';
     try { await initMP(); } catch (err) {
       $('progress').textContent = '模型加载失败：' + (err && err.message ? err.message : err);
       $('btnAnalyze').disabled = false;
